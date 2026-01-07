@@ -204,19 +204,16 @@ const LoginScreen = ({ onLoginSuccess }) => {
       <div className="flex-1 flex flex-col justify-center px-8 relative z-10 w-full overflow-y-auto">
         
         <div className="flex flex-col items-center justify-center mb-8">
-            <div className="bg-white p-5 rounded-[2rem] shadow-2xl shadow-indigo-500/20 animate-in zoom-in duration-500">
-                {/* LOGIKA 'onError' DIHAPUS.
-                   Jika gambar rusak/private, akan muncul icon "broken image" browser.
-                   Ini memastikan kita tahu apakah linknya bekerja atau tidak.
-                */}
+            {/* PERUBAHAN DI SINI: Menghapus kelas bg-white, p-5, rounded, shadow */}
+            <div className="mb-4 animate-in zoom-in duration-500">
                 <img 
                     src={LOGO_URL} 
                     alt="Logo Claim Softdrink Baru"
-                    className="w-auto h-32 object-contain"
-                    key={LOGO_URL} // Memaksa React untuk me-refresh gambar jika URL berubah
+                    className="w-auto h-36 object-contain" // Sedikit memperbesar tinggi agar pas tanpa padding
+                    key={LOGO_URL} 
                 />
             </div>
-            <h1 className="text-white font-black text-2xl mt-6 tracking-tight"></h1>
+            <h1 className="text-white font-black text-2xl mt-2 tracking-tight"></h1>
             <p className="text-blue-200 text-center text-sm opacity-80 mt-1">Digitalization Of EHS MKT</p>
         </div>
 
