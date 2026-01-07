@@ -171,12 +171,13 @@ const CouponModal = ({ data, onClose }) => {
   );
 };
 
-// --- 4. Login Screen ---
+// --- 4. Login Screen (UPDATED & FIXED) ---
 const LoginScreen = ({ onLoginSuccess }) => {
   const [nrp, setNrp] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [imgError, setImgError] = useState(false); // State untuk cek error gambar
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -197,32 +198,51 @@ const LoginScreen = ({ onLoginSuccess }) => {
   };
 
   return (
-    <MobileWrapper className="bg-gradient-to-br from-slate-900 to-indigo-950">
+    <MobileWrapper className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900">
       <div className="flex-1 flex flex-col justify-center px-8 relative z-10 w-full overflow-y-auto">
-        <div className="flex justify-center mb-6">
-            <img 
-                src="https://github.com/chairulbreaks06-NR/ClaimSofdrinkYard/blob/main/logo%20Claim%20Sofdrink%20(1).png?raw=true" 
-                alt="Logo Claim Softdrink"
-                className="w-auto h-40 object-contain drop-shadow-2xl animate-in zoom-in duration-500"
-            />
+        
+        {/* --- LOGO AREA DENGAN BACKGROUND PUTIH --- */}
+        <div className="flex flex-col items-center justify-center mb-8">
+            <div className="bg-white p-5 rounded-[2rem] shadow-2xl shadow-indigo-500/20 animate-in zoom-in duration-500">
+                {!imgError ? (
+                    <img 
+                        src="https://github.com/chairulbreaks06-NR/ClaimSofdrinkYard/blob/main/logo%20Claim%20Sofdrink%20(1).png?raw=true" 
+                        alt="Logo Claim Softdrink"
+                        className="w-auto h-32 object-contain"
+                        onError={() => setImgError(true)} 
+                    />
+                ) : (
+                    // Fallback jika gambar error
+                    <div className="w-32 h-32 flex flex-col items-center justify-center text-indigo-600">
+                        <Coffee size={48} strokeWidth={2.5} />
+                        <span className="text-[10px] font-black mt-2 uppercase tracking-widest">Claim App</span>
+                    </div>
+                )}
+            </div>
+            <h1 className="text-white font-black text-2xl mt-6 tracking-tight">Selamat Datang</h1>
+            <p className="text-blue-200 text-center text-sm opacity-80 mt-1">Portal Layanan Karyawan</p>
         </div>
-        <p className="text-blue-200 mb-8 text-center text-sm opacity-80">Portal Layanan Karyawan</p>
+
         <form onSubmit={handleLogin} className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full">
           <div className="relative">
             <User className="absolute left-4 top-3.5 text-gray-400" size={20} />
-            <input type="text" placeholder="NRP" className="w-full bg-white/10 text-white placeholder:text-gray-400 border border-white/20 rounded-xl py-3 pl-12 pr-4 focus:outline-none"
+            <input type="text" placeholder="NRP" className="w-full bg-white/10 text-white placeholder:text-gray-400 border border-white/20 rounded-xl py-3 pl-12 pr-4 focus:outline-none focus:border-blue-400 transition-all"
               value={nrp} onChange={(e) => setNrp(e.target.value)} />
           </div>
           <div className="relative">
             <Lock className="absolute left-4 top-3.5 text-gray-400" size={20} />
-            <input type="password" placeholder="Password" className="w-full bg-white/10 text-white placeholder:text-gray-400 border border-white/20 rounded-xl py-3 pl-12 pr-4 focus:outline-none"
+            <input type="password" placeholder="Password" className="w-full bg-white/10 text-white placeholder:text-gray-400 border border-white/20 rounded-xl py-3 pl-12 pr-4 focus:outline-none focus:border-blue-400 transition-all"
               value={password} onChange={(e) => setPassword(e.target.value)} />
           </div>
-          {error && <p className="text-red-300 text-xs text-center font-bold">{error}</p>}
-          <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white p-4 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 active:scale-95">
-            {loading ? '...' : 'Masuk'} <ArrowRight size={20} />
+          {error && <div className="bg-red-500/20 border border-red-500/50 p-2 rounded-lg"><p className="text-red-200 text-xs text-center font-bold">{error}</p></div>}
+          <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white p-4 rounded-xl font-bold shadow-lg shadow-blue-900/50 flex items-center justify-center gap-2 active:scale-95 transition-transform hover:bg-blue-500">
+            {loading ? <Loader2 className="animate-spin" /> : 'Masuk'} {!loading && <ArrowRight size={20} />}
           </button>
         </form>
+        
+        <div className="absolute bottom-6 w-full text-center left-0 px-8">
+            <p className="text-[10px] text-slate-500 font-medium">PT Global Service Indonesia &copy; 2025</p>
+        </div>
       </div>
     </MobileWrapper>
   );
@@ -851,7 +871,7 @@ const EmployeeDashboard = ({ user, area, logout }) => {
                   <span className="flex items-center gap-3"><LogOut size={18}/> Keluar Akun</span><ArrowRight size={16} className="text-red-300"/>
               </button>
           </div>
-          <p className="text-center text-gray-300 text-xs mt-8">Versi Aplikasi 2.9.1 Admin Update</p>
+          <p className="text-center text-gray-300 text-xs mt-8">Versi Aplikasi 2.9.2 Admin Update</p>
       </div>
   );
 
