@@ -239,7 +239,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
         </form>
         
         <div className="absolute bottom-6 w-full text-center left-0 px-8">
-            <p className="text-[10px] text-slate-500 font-medium">PT Global Service Indonesia &copy; 2025</p>
+            <p className="text-[10px] text-slate-500 font-medium">APLIKASI BY IRL92 &copy; 2026</p>
         </div>
       </div>
     </MobileWrapper>
