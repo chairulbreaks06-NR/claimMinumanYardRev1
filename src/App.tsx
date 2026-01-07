@@ -209,7 +209,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
                 <img 
                     src={LOGO_URL} 
                     alt="Logo Claim Softdrink Baru"
-                    className="w-auto h-35 object-contain" // Sedikit memperbesar tinggi agar pas tanpa padding
+                    className="w-40 h-36 object-contain" // Sedikit memperbesar tinggi agar pas tanpa padding
                     key={LOGO_URL} 
                 />
             </div>
