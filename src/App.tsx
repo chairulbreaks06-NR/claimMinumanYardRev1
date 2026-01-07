@@ -171,13 +171,13 @@ const CouponModal = ({ data, onClose }) => {
   );
 };
 
-// --- 4. Login Screen (UPDATED & FIXED) ---
+// --- 4. Login Screen ---
 const LoginScreen = ({ onLoginSuccess }) => {
   const [nrp, setNrp] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [imgError, setImgError] = useState(false); // State untuk cek error gambar
+  const [imgError, setImgError] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -201,7 +201,6 @@ const LoginScreen = ({ onLoginSuccess }) => {
     <MobileWrapper className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900">
       <div className="flex-1 flex flex-col justify-center px-8 relative z-10 w-full overflow-y-auto">
         
-        {/* --- LOGO AREA DENGAN BACKGROUND PUTIH --- */}
         <div className="flex flex-col items-center justify-center mb-8">
             <div className="bg-white p-5 rounded-[2rem] shadow-2xl shadow-indigo-500/20 animate-in zoom-in duration-500">
                 {!imgError ? (
@@ -212,7 +211,6 @@ const LoginScreen = ({ onLoginSuccess }) => {
                         onError={() => setImgError(true)} 
                     />
                 ) : (
-                    // Fallback jika gambar error
                     <div className="w-32 h-32 flex flex-col items-center justify-center text-indigo-600">
                         <Coffee size={48} strokeWidth={2.5} />
                         <span className="text-[10px] font-black mt-2 uppercase tracking-widest">Claim App</span>
@@ -298,21 +296,22 @@ const AdminDashboard = ({ user, area, logout }) => {
   const [newUserPass, setNewUserPass] = useState('');
   const [newUserName, setNewUserName] = useState('');
   
-  // Logic Role Baru
+  // Logic Role & Authority Baru
   const [accountType, setAccountType] = useState('user'); // 'user' atau 'admin'
   const [newUserRole, setNewUserRole] = useState('user'); // 'user', 'admin_area', 'general_admin'
+  const [assignedYard, setAssignedYard] = useState(YARDS[0]); // Pilihan Yard untuk Admin Area
 
   // Update role otomatis saat accountType berubah
   useEffect(() => {
     if (accountType === 'user') {
         setNewUserRole('user');
     } else {
-        // Default ke admin area jika baru pindah ke admin
         if (newUserRole === 'user') setNewUserRole('admin_area');
     }
   }, [accountType]);
 
   useEffect(() => {
+    // Admin hanya melihat stok sesuai area yang dia masuki/pilih
     const q = query(collection(db, 'inventory'), where('area', '==', area));
     return onSnapshot(q, (snap) => {
         const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -330,8 +329,15 @@ const AdminDashboard = ({ user, area, logout }) => {
 
   useEffect(() => {
     if(activeTab === 'manage' && user.role !== 'user') {
-        const q = user.role === 'general_admin' ? query(collection(db, 'users'), orderBy('displayName')) : query(collection(db, 'users'), where('role', '==', 'user'));
-        return onSnapshot(q, (snap) => setUsersList(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+        // General admin lihat semua user, admin area tidak perlu lihat user list (opsional, disini ditampilkan semua untuk general)
+        const q = user.role === 'general_admin' 
+            ? query(collection(db, 'users'), orderBy('displayName')) 
+            : query(collection(db, 'users'), where('role', '==', 'user')); // Admin area hanya lihat user biasa (jika diperlukan)
+        
+        // Agar simple, kita biarkan logic query awal:
+        const qFinal = user.role === 'general_admin' ? query(collection(db, 'users')) : query(collection(db, 'users'), where('role', '==', 'user'));
+        
+        return onSnapshot(qFinal, (snap) => setUsersList(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     }
   }, [activeTab, user.role]);
 
@@ -352,10 +358,11 @@ const AdminDashboard = ({ user, area, logout }) => {
             });
             setEditingItem(null);
         } else {
+            // Save inventory to CURRENT active area (already filtered by login/selection)
             await addDoc(collection(db, 'inventory'), { 
                 name: newItemName, 
                 warehouseStock: parseInt(newItemStock), 
-                area, 
+                area: area, // KUNCI: Stok disimpan berdasarkan area aktif
                 day: newItemDay,
                 createdAt: serverTimestamp() 
             });
@@ -374,15 +381,24 @@ const AdminDashboard = ({ user, area, logout }) => {
   const handleAddUser = async (e) => {
       e.preventDefault();
       try {
-          await addDoc(collection(db, 'users'), { 
+          // Siapkan data user
+          const userData = {
             nrp: newUserNrp, 
             password: newUserPass, 
             displayName: newUserName, 
             role: newUserRole, 
             createdAt: serverTimestamp() 
-          });
+          };
+
+          // Jika role adalah Admin Area, simpan assignedArea nya
+          if (newUserRole === 'admin_area') {
+             userData.assignedArea = assignedYard;
+          }
+
+          await addDoc(collection(db, 'users'), userData);
+          
           setNewUserNrp(''); setNewUserPass(''); setNewUserName(''); 
-          setAccountType('user'); // Reset form
+          setAccountType('user'); 
           showSuccess("User Ditambahkan");
       } catch (e) { alert("Gagal tambah user"); }
   };
@@ -526,7 +542,9 @@ const AdminDashboard = ({ user, area, logout }) => {
                 ))}
             </div>
           </div>
-          {(user.role === 'general_admin' || user.role === 'admin_area') && (
+          
+          {/* Fitur Tambah User: Hanya untuk General Admin */}
+          {(user.role === 'general_admin') && (
               <div>
                  <h3 className="font-bold text-slate-700 text-lg mb-3 flex items-center gap-2"><Users size={18}/> Kelola User</h3>
                  <div className="bg-white p-4 rounded-2xl shadow-sm border border-purple-100 mb-4">
@@ -538,7 +556,7 @@ const AdminDashboard = ({ user, area, logout }) => {
                             <input required type="text" placeholder="Password" className="w-1/2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-gray-900" value={newUserPass} onChange={e=>setNewUserPass(e.target.value)} />
                         </div>
                         
-                        {/* UPDATE: Dropdown Pilihan Role */}
+                        {/* Dropdown Tipe Akun */}
                         <div className="grid grid-cols-2 gap-2">
                             <div>
                                 <label className="text-[10px] font-bold text-gray-400 ml-1">Tipe Akun</label>
@@ -552,10 +570,10 @@ const AdminDashboard = ({ user, area, logout }) => {
                                 </select>
                             </div>
 
-                            {/* Tampilkan Pilihan Otoritas Hanya Jika Tipe Akun = Admin */}
+                            {/* Dropdown Otoritas (Muncul jika tipe akun = Admin) */}
                             {accountType === 'admin' && (
                                 <div className="animate-in fade-in zoom-in-95">
-                                    <label className="text-[10px] font-bold text-gray-400 ml-1">Otoritas</label>
+                                    <label className="text-[10px] font-bold text-gray-400 ml-1">Role Admin</label>
                                     <select 
                                         className="w-full bg-purple-50 border border-purple-200 rounded-lg px-2 py-2 text-xs font-bold text-purple-700"
                                         value={newUserRole} 
@@ -568,16 +586,49 @@ const AdminDashboard = ({ user, area, logout }) => {
                             )}
                         </div>
 
+                        {/* --- NEW: Dropdown Pilih Yard (Hanya Jika Role = Admin Area) --- */}
+                        {newUserRole === 'admin_area' && (
+                             <div className="animate-in fade-in zoom-in-95 mt-2">
+                                <label className="text-[10px] font-bold text-gray-400 ml-1">Pilih Otoritas Yard</label>
+                                <div className="relative">
+                                    <Building2 size={14} className="absolute left-3 top-3 text-purple-400"/>
+                                    <select 
+                                        className="w-full bg-purple-50 border border-purple-200 rounded-lg py-2 pl-9 pr-2 text-xs font-bold text-purple-700"
+                                        value={assignedYard}
+                                        onChange={(e) => setAssignedYard(e.target.value)}
+                                    >
+                                        {YARDS.map(yard => (
+                                            <option key={yard} value={yard}>{yard}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                             </div>
+                        )}
+                        {/* ---------------------------------------------------------------- */}
+
                         <button type="submit" className="w-full bg-purple-600 text-white py-2 rounded-lg font-bold text-sm mt-2 hover:bg-purple-700 transition-colors">Tambah User</button>
                     </form>
                  </div>
+                 
+                 {/* List User */}
                  <div className="space-y-2 max-h-60 overflow-y-auto">
                       {usersList.map(u => (
                           <div key={u.id} className="bg-white p-3 rounded-xl border border-slate-100 flex justify-between items-center">
-                              <div><div className="font-bold text-sm text-slate-700">{u.displayName}</div><div className="text-[10px] text-gray-400">{u.nrp}</div></div>
-                              <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase ${u.role === 'user' ? 'bg-gray-100 text-gray-600' : 'bg-purple-100 text-purple-600'}`}>
-                                {u.role === 'general_admin' ? 'General' : u.role === 'admin_area' ? 'Admin Area' : 'User'}
-                              </span>
+                              <div>
+                                  <div className="font-bold text-sm text-slate-700">{u.displayName}</div>
+                                  <div className="text-[10px] text-gray-400">{u.nrp}</div>
+                              </div>
+                              <div className="text-right">
+                                  <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase block mb-1 ${u.role === 'user' ? 'bg-gray-100 text-gray-600' : 'bg-purple-100 text-purple-600'}`}>
+                                    {u.role === 'general_admin' ? 'General' : u.role === 'admin_area' ? 'Admin Area' : 'User'}
+                                  </span>
+                                  {/* Tampilkan Area Otoritas jika ada */}
+                                  {u.role === 'admin_area' && u.assignedArea && (
+                                      <span className="text-[9px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-bold">
+                                          {u.assignedArea}
+                                      </span>
+                                  )}
+                              </div>
                           </div>
                       ))}
                  </div>
@@ -605,9 +656,8 @@ const AdminDashboard = ({ user, area, logout }) => {
     <MobileWrapper className="bg-slate-50">
       <SuccessModal message={successMsg} onClose={() => setSuccessMsg(null)} />
       
-      {/* HEADER FIXED + NAVIGASI BARU DI ATAS */}
+      {/* HEADER FIXED */}
       <div className="bg-indigo-900 pt-6 pb-4 px-6 rounded-b-[2rem] shadow-xl flex flex-col w-full shrink-0 z-20 relative overflow-hidden">
-         {/* Background Decoration */}
          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-10 -mt-10 blur-2xl"></div>
          <div className="absolute bottom-0 left-0 w-24 h-24 bg-indigo-500/20 rounded-full -ml-5 -mb-5 blur-xl"></div>
 
@@ -623,7 +673,7 @@ const AdminDashboard = ({ user, area, logout }) => {
              </button>
          </div>
 
-         {/* MENU NAVIGASI (Segmented Control Style) */}
+         {/* MENU NAVIGASI */}
          <div className="bg-indigo-950/50 p-1.5 rounded-xl flex gap-1 backdrop-blur-md border border-white/5 relative z-10">
             <MenuButton id="history" label="Riwayat" icon={History} />
             <MenuButton id="stats" label="Statistik" icon={BarChart3} />
@@ -637,8 +687,6 @@ const AdminDashboard = ({ user, area, logout }) => {
           {activeTab === 'stats' && renderStats()}
           {activeTab === 'manage' && renderManage()}
       </div>
-      
-      {/* FOOTER DIHAPUS - Area Bawah Kosong untuk Scroll */}
     </MobileWrapper>
   );
 };
@@ -871,7 +919,7 @@ const EmployeeDashboard = ({ user, area, logout }) => {
                   <span className="flex items-center gap-3"><LogOut size={18}/> Keluar Akun</span><ArrowRight size={16} className="text-red-300"/>
               </button>
           </div>
-          <p className="text-center text-gray-300 text-xs mt-8">Versi Aplikasi 2.9.2 Admin Update</p>
+          <p className="text-center text-gray-300 text-xs mt-8">Versi Aplikasi 2.9.3 Admin Authority</p>
       </div>
   );
 
@@ -911,14 +959,27 @@ const EmployeeDashboard = ({ user, area, logout }) => {
   );
 };
 
-// --- 8. Main App ---
+// --- 8. Main App (UPDATED LOGIC) ---
 const App = () => {
   const [user, setUser] = useState(null);
   const [selectedArea, setSelectedArea] = useState(null);
+
+  // Logic Login: Auto-Redirect jika Admin Area punya Assigned Area
+  const handleLoginSuccess = (userData) => {
+      setUser(userData);
+      // Jika Admin Area dan sudah punya Assigned Area, langsung set area tanpa perlu memilih
+      if (userData.role === 'admin_area' && userData.assignedArea) {
+          setSelectedArea(userData.assignedArea);
+      }
+  };
+
   const handleLogout = () => { setUser(null); setSelectedArea(null); };
 
-  if (!user) return <LoginScreen onLoginSuccess={setUser} />;
+  if (!user) return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
+  
+  // Jika Area belum dipilih (untuk User Biasa atau General Admin), tampilkan layar pilih area
   if (!selectedArea) return <AreaSelectionScreen user={user} onSelectArea={setSelectedArea} onLogout={handleLogout} />;
+  
   if (['admin_area', 'general_admin'].includes(user.role)) return <AdminDashboard user={user} area={selectedArea} logout={handleLogout} />;
   return <EmployeeDashboard user={user} area={selectedArea} logout={handleLogout} />;
 };
