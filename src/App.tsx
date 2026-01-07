@@ -213,7 +213,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
                 ) : (
                     <div className="w-32 h-32 flex flex-col items-center justify-center text-indigo-600">
                         <Coffee size={48} strokeWidth={2.5} />
-                        <span className="text-[10px] font-black mt-2 uppercase tracking-widest">Claim Softdrink MKT</span>
+                        <span className="text-[10px] font-black mt-2 uppercase tracking-widest">Claim Softdrink</span>
                     </div>
                 )}
             </div>
