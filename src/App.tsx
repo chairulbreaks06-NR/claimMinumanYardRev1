@@ -10,7 +10,7 @@ import {
   LogOut, Package, MapPin, Clock, ArrowRight, Lock, 
   User, Edit, Trash2, Building2, WifiOff,
   LayoutDashboard, History, UserCircle, Search, Briefcase, 
-  Loader2, BarChart3, TrendingUp, CalendarDays, FileSpreadsheet, Download
+  Loader2, BarChart3, TrendingUp, CalendarDays, FileSpreadsheet, Download, Filter
 } from 'lucide-react';
 
 // --- 1. Firebase Configuration ---
@@ -272,7 +272,7 @@ const AreaSelectionScreen = ({ user, onSelectArea, onLogout }) => {
   );
 };
 
-// --- 6. Admin Dashboard (UPDATED) ---
+// --- 6. Admin Dashboard (FIXED & UPDATED) ---
 const AdminDashboard = ({ user, area, logout }) => {
   const [activeTab, setActiveTab] = useState('history'); 
   const [successMsg, setSuccessMsg] = useState(null);
@@ -281,9 +281,11 @@ const AdminDashboard = ({ user, area, logout }) => {
   const [inventory, setInventory] = useState([]);
   const [usersList, setUsersList] = useState([]);
   
+  // State Filter Baru
+  const [filterType, setFilterType] = useState('today'); // 'today', 'week', 'month', 'custom'
   const [historySearch, setHistorySearch] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDate, setStartDate] = useState(getTodayString()); // Default hari ini
+  const [endDate, setEndDate] = useState(getTodayString());     // Default hari ini
 
   // State Inventory
   const [newItemName, setNewItemName] = useState('');
@@ -296,12 +298,32 @@ const AdminDashboard = ({ user, area, logout }) => {
   const [newUserPass, setNewUserPass] = useState('');
   const [newUserName, setNewUserName] = useState('');
   
-  // Logic Role & Authority Baru
-  const [accountType, setAccountType] = useState('user'); // 'user' atau 'admin'
-  const [newUserRole, setNewUserRole] = useState('user'); // 'user', 'admin_area', 'general_admin'
-  const [assignedYard, setAssignedYard] = useState(YARDS[0]); // Pilihan Yard untuk Admin Area
+  // Logic Role & Authority
+  const [accountType, setAccountType] = useState('user'); 
+  const [newUserRole, setNewUserRole] = useState('user'); 
+  const [assignedYard, setAssignedYard] = useState(YARDS[0]); 
 
-  // Update role otomatis saat accountType berubah
+  // LOGIKA FILTER OTOMATIS
+  useEffect(() => {
+    const today = new Date();
+    const formatDateInput = (d) => d.toISOString().split('T')[0];
+    
+    if (filterType === 'today') {
+        setStartDate(formatDateInput(today));
+        setEndDate(formatDateInput(today));
+    } else if (filterType === 'week') {
+        const past = new Date();
+        past.setDate(today.getDate() - 7);
+        setStartDate(formatDateInput(past));
+        setEndDate(formatDateInput(today));
+    } else if (filterType === 'month') {
+        const past = new Date();
+        past.setDate(today.getDate() - 30);
+        setStartDate(formatDateInput(past));
+        setEndDate(formatDateInput(today));
+    }
+  }, [filterType]);
+
   useEffect(() => {
     if (accountType === 'user') {
         setNewUserRole('user');
@@ -311,7 +333,6 @@ const AdminDashboard = ({ user, area, logout }) => {
   }, [accountType]);
 
   useEffect(() => {
-    // Admin hanya melihat stok sesuai area yang dia masuki/pilih
     const q = query(collection(db, 'inventory'), where('area', '==', area));
     return onSnapshot(q, (snap) => {
         const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -320,23 +341,30 @@ const AdminDashboard = ({ user, area, logout }) => {
     });
   }, [area]);
 
+  // --- PERBAIKAN UTAMA: Query Klaim Tanpa OrderBy ---
   useEffect(() => {
-      const q = query(collection(db, 'claims'), where('area', '==', area), orderBy('timestamp', 'desc'));
+      // PERBAIKAN: Hapus orderBy('timestamp', 'desc') dari query Firestore
+      // Ini mengatasi masalah data tidak muncul karena index belum dibuat.
+      // Kita sorting manual di client-side (Javascript).
+      const q = query(collection(db, 'claims'), where('area', '==', area));
+      
       return onSnapshot(q, (snap) => {
-          setAllClaims(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+          const fetchedData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          
+          // Sort Client Side (Terbaru diatas)
+          fetchedData.sort((a, b) => {
+              const timeA = a.timestamp?.seconds || 0;
+              const timeB = b.timestamp?.seconds || 0;
+              return timeB - timeA;
+          });
+
+          setAllClaims(fetchedData);
       });
   }, [area]);
 
   useEffect(() => {
     if(activeTab === 'manage' && user.role !== 'user') {
-        // General admin lihat semua user, admin area tidak perlu lihat user list (opsional, disini ditampilkan semua untuk general)
-        const q = user.role === 'general_admin' 
-            ? query(collection(db, 'users'), orderBy('displayName')) 
-            : query(collection(db, 'users'), where('role', '==', 'user')); // Admin area hanya lihat user biasa (jika diperlukan)
-        
-        // Agar simple, kita biarkan logic query awal:
         const qFinal = user.role === 'general_admin' ? query(collection(db, 'users')) : query(collection(db, 'users'), where('role', '==', 'user'));
-        
         return onSnapshot(qFinal, (snap) => setUsersList(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     }
   }, [activeTab, user.role]);
@@ -358,11 +386,10 @@ const AdminDashboard = ({ user, area, logout }) => {
             });
             setEditingItem(null);
         } else {
-            // Save inventory to CURRENT active area (already filtered by login/selection)
             await addDoc(collection(db, 'inventory'), { 
                 name: newItemName, 
                 warehouseStock: parseInt(newItemStock), 
-                area: area, // KUNCI: Stok disimpan berdasarkan area aktif
+                area: area, 
                 day: newItemDay,
                 createdAt: serverTimestamp() 
             });
@@ -381,7 +408,6 @@ const AdminDashboard = ({ user, area, logout }) => {
   const handleAddUser = async (e) => {
       e.preventDefault();
       try {
-          // Siapkan data user
           const userData = {
             nrp: newUserNrp, 
             password: newUserPass, 
@@ -389,14 +415,10 @@ const AdminDashboard = ({ user, area, logout }) => {
             role: newUserRole, 
             createdAt: serverTimestamp() 
           };
-
-          // Jika role adalah Admin Area, simpan assignedArea nya
           if (newUserRole === 'admin_area') {
              userData.assignedArea = assignedYard;
           }
-
           await addDoc(collection(db, 'users'), userData);
-          
           setNewUserNrp(''); setNewUserPass(''); setNewUserName(''); 
           setAccountType('user'); 
           showSuccess("User Ditambahkan");
@@ -404,9 +426,17 @@ const AdminDashboard = ({ user, area, logout }) => {
   };
 
   const statsData = useMemo(() => {
-      const totalClaims = allClaims.length;
+      // Filter dulu data berdasarkan tanggal yang dipilih agar statistik akurat
+      const filteredForStats = allClaims.filter(item => {
+        let matchDate = true;
+        if (startDate) matchDate = matchDate && item.date >= startDate;
+        if (endDate) matchDate = matchDate && item.date <= endDate;
+        return matchDate;
+      });
+
+      const totalClaims = filteredForStats.length;
       const drinkCounts = {};
-      allClaims.forEach(claim => {
+      filteredForStats.forEach(claim => {
           const drink = claim.drinkName;
           drinkCounts[drink] = (drinkCounts[drink] || 0) + 1;
       });
@@ -417,7 +447,7 @@ const AdminDashboard = ({ user, area, logout }) => {
       })).sort((a,b) => b.count - a.count);
 
       return { totalClaims, chartData };
-  }, [allClaims]);
+  }, [allClaims, startDate, endDate]); // Recalculate if dates change
 
   const renderHistory = () => {
       const filteredClaims = allClaims.filter(item => {
@@ -433,20 +463,30 @@ const AdminDashboard = ({ user, area, logout }) => {
             <h3 className="font-bold text-slate-700 text-xl mb-4 flex items-center gap-2"><History size={20}/> Riwayat Klaim</h3>
             
             <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-4 space-y-3">
+                
+                {/* FILTER SHORTCUTS */}
+                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                    <button onClick={() => setFilterType('today')} className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${filterType === 'today' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>Hari Ini</button>
+                    <button onClick={() => setFilterType('week')} className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${filterType === 'week' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>7 Hari</button>
+                    <button onClick={() => setFilterType('month')} className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${filterType === 'month' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>30 Hari</button>
+                    <button onClick={() => setFilterType('custom')} className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${filterType === 'custom' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>Custom</button>
+                </div>
+
                 <div className="relative">
                     <Search size={16} className="absolute left-3 top-3 text-gray-400"/>
                     <input type="text" placeholder="Cari nama karyawan..." className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-10 pr-4 text-sm text-gray-900 focus:outline-none focus:border-indigo-400"
                         value={historySearch} onChange={(e) => setHistorySearch(e.target.value)} />
                 </div>
+                
                 <div className="grid grid-cols-2 gap-2">
                     <div>
                         <label className="text-[10px] font-bold text-gray-400 ml-1">Dari</label>
-                        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} 
+                        <input type="date" value={startDate} onChange={e => {setStartDate(e.target.value); setFilterType('custom');}} 
                             className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs text-gray-700 focus:outline-none"/>
                     </div>
                     <div>
                         <label className="text-[10px] font-bold text-gray-400 ml-1">Sampai</label>
-                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} 
+                        <input type="date" value={endDate} onChange={e => {setEndDate(e.target.value); setFilterType('custom');}} 
                             className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs text-gray-700 focus:outline-none"/>
                     </div>
                 </div>
@@ -460,7 +500,7 @@ const AdminDashboard = ({ user, area, logout }) => {
             <div className="space-y-3">
                 {filteredClaims.length === 0 && <p className="text-center text-gray-400 py-10">Tidak ada riwayat.</p>}
                 {filteredClaims.map(claim => (
-                    <div key={claim.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center">
+                    <div key={claim.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center animate-in fade-in slide-in-from-bottom-2">
                         <div>
                             <h4 className="font-bold text-slate-700 text-sm">{claim.userName}</h4>
                             <p className="text-xs text-gray-400 mb-1">{claim.drinkName}</p>
@@ -477,11 +517,18 @@ const AdminDashboard = ({ user, area, logout }) => {
   const renderStats = () => (
       <div className="p-6 pb-28 w-full animate-in fade-in slide-in-from-bottom-4">
           <h3 className="font-bold text-slate-700 text-xl mb-6 flex items-center gap-2"><BarChart3 size={20}/> Statistik Area</h3>
+          
+          <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
+              <span className="text-[10px] font-bold bg-slate-100 text-slate-500 px-3 py-1 rounded-full whitespace-nowrap">
+                 Filter: {filterType === 'today' ? 'Hari Ini' : filterType === 'week' ? '7 Hari Terakhir' : filterType === 'month' ? '30 Hari Terakhir' : 'Custom'}
+              </span>
+          </div>
+
           <div className="grid grid-cols-2 gap-4 mb-6">
               <div className="bg-indigo-600 p-5 rounded-2xl text-white shadow-lg shadow-indigo-200">
                   <p className="text-indigo-200 text-xs font-bold mb-1">Total Klaim</p>
                   <h2 className="text-3xl font-black">{statsData.totalClaims}</h2>
-                  <p className="text-[10px] opacity-80 mt-2">Semua Waktu</p>
+                  <p className="text-[10px] opacity-80 mt-2">Periode Terpilih</p>
               </div>
               <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
                   <p className="text-gray-400 text-xs font-bold mb-1">Minuman Favorit</p>
@@ -498,7 +545,7 @@ const AdminDashboard = ({ user, area, logout }) => {
                           <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden"><div className="bg-indigo-500 h-2.5 rounded-full" style={{ width: `${data.percent}%` }}></div></div>
                       </div>
                   ))}
-                  {statsData.chartData.length === 0 && <p className="text-center text-xs text-gray-400">Belum ada data statistik.</p>}
+                  {statsData.chartData.length === 0 && <p className="text-center text-xs text-gray-400">Belum ada data statistik di periode ini.</p>}
               </div>
           </div>
       </div>
@@ -543,7 +590,6 @@ const AdminDashboard = ({ user, area, logout }) => {
             </div>
           </div>
           
-          {/* Fitur Tambah User: Hanya untuk General Admin */}
           {(user.role === 'general_admin') && (
               <div>
                  <h3 className="font-bold text-slate-700 text-lg mb-3 flex items-center gap-2"><Users size={18}/> Kelola User</h3>
@@ -556,7 +602,6 @@ const AdminDashboard = ({ user, area, logout }) => {
                             <input required type="text" placeholder="Password" className="w-1/2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-gray-900" value={newUserPass} onChange={e=>setNewUserPass(e.target.value)} />
                         </div>
                         
-                        {/* Dropdown Tipe Akun */}
                         <div className="grid grid-cols-2 gap-2">
                             <div>
                                 <label className="text-[10px] font-bold text-gray-400 ml-1">Tipe Akun</label>
@@ -570,7 +615,6 @@ const AdminDashboard = ({ user, area, logout }) => {
                                 </select>
                             </div>
 
-                            {/* Dropdown Otoritas (Muncul jika tipe akun = Admin) */}
                             {accountType === 'admin' && (
                                 <div className="animate-in fade-in zoom-in-95">
                                     <label className="text-[10px] font-bold text-gray-400 ml-1">Role Admin</label>
@@ -586,7 +630,6 @@ const AdminDashboard = ({ user, area, logout }) => {
                             )}
                         </div>
 
-                        {/* --- NEW: Dropdown Pilih Yard (Hanya Jika Role = Admin Area) --- */}
                         {newUserRole === 'admin_area' && (
                              <div className="animate-in fade-in zoom-in-95 mt-2">
                                 <label className="text-[10px] font-bold text-gray-400 ml-1">Pilih Otoritas Yard</label>
@@ -604,13 +647,11 @@ const AdminDashboard = ({ user, area, logout }) => {
                                 </div>
                              </div>
                         )}
-                        {/* ---------------------------------------------------------------- */}
 
                         <button type="submit" className="w-full bg-purple-600 text-white py-2 rounded-lg font-bold text-sm mt-2 hover:bg-purple-700 transition-colors">Tambah User</button>
                     </form>
                  </div>
                  
-                 {/* List User */}
                  <div className="space-y-2 max-h-60 overflow-y-auto">
                       {usersList.map(u => (
                           <div key={u.id} className="bg-white p-3 rounded-xl border border-slate-100 flex justify-between items-center">
@@ -622,7 +663,6 @@ const AdminDashboard = ({ user, area, logout }) => {
                                   <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase block mb-1 ${u.role === 'user' ? 'bg-gray-100 text-gray-600' : 'bg-purple-100 text-purple-600'}`}>
                                     {u.role === 'general_admin' ? 'General' : u.role === 'admin_area' ? 'Admin Area' : 'User'}
                                   </span>
-                                  {/* Tampilkan Area Otoritas jika ada */}
                                   {u.role === 'admin_area' && u.assignedArea && (
                                       <span className="text-[9px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-bold">
                                           {u.assignedArea}
@@ -637,7 +677,6 @@ const AdminDashboard = ({ user, area, logout }) => {
       </div>
   );
 
-  // --- MENU BUTTON HELPER ---
   const MenuButton = ({ id, label, icon: Icon }) => (
       <button 
         onClick={() => setActiveTab(id)} 
@@ -656,7 +695,6 @@ const AdminDashboard = ({ user, area, logout }) => {
     <MobileWrapper className="bg-slate-50">
       <SuccessModal message={successMsg} onClose={() => setSuccessMsg(null)} />
       
-      {/* HEADER FIXED */}
       <div className="bg-indigo-900 pt-6 pb-4 px-6 rounded-b-[2rem] shadow-xl flex flex-col w-full shrink-0 z-20 relative overflow-hidden">
          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-10 -mt-10 blur-2xl"></div>
          <div className="absolute bottom-0 left-0 w-24 h-24 bg-indigo-500/20 rounded-full -ml-5 -mb-5 blur-xl"></div>
@@ -673,7 +711,6 @@ const AdminDashboard = ({ user, area, logout }) => {
              </button>
          </div>
 
-         {/* MENU NAVIGASI */}
          <div className="bg-indigo-950/50 p-1.5 rounded-xl flex gap-1 backdrop-blur-md border border-white/5 relative z-10">
             <MenuButton id="history" label="Riwayat" icon={History} />
             <MenuButton id="stats" label="Statistik" icon={BarChart3} />
@@ -681,7 +718,6 @@ const AdminDashboard = ({ user, area, logout }) => {
          </div>
       </div>
       
-      {/* SCROLLABLE CONTENT */}
       <div className="flex-1 overflow-y-auto w-full overscroll-none scrollbar-hide bg-slate-50">
           {activeTab === 'history' && renderHistory()}
           {activeTab === 'stats' && renderStats()}
@@ -919,7 +955,7 @@ const EmployeeDashboard = ({ user, area, logout }) => {
                   <span className="flex items-center gap-3"><LogOut size={18}/> Keluar Akun</span><ArrowRight size={16} className="text-red-300"/>
               </button>
           </div>
-          <p className="text-center text-gray-300 text-xs mt-8">Versi Aplikasi 2.9.3 Admin Authority</p>
+          <p className="text-center text-gray-300 text-xs mt-8">Versi Aplikasi 2.9.4 Fix Index & Filter</p>
       </div>
   );
 
@@ -959,15 +995,13 @@ const EmployeeDashboard = ({ user, area, logout }) => {
   );
 };
 
-// --- 8. Main App (UPDATED LOGIC) ---
+// --- 8. Main App ---
 const App = () => {
   const [user, setUser] = useState(null);
   const [selectedArea, setSelectedArea] = useState(null);
 
-  // Logic Login: Auto-Redirect jika Admin Area punya Assigned Area
   const handleLoginSuccess = (userData) => {
       setUser(userData);
-      // Jika Admin Area dan sudah punya Assigned Area, langsung set area tanpa perlu memilih
       if (userData.role === 'admin_area' && userData.assignedArea) {
           setSelectedArea(userData.assignedArea);
       }
@@ -977,7 +1011,6 @@ const App = () => {
 
   if (!user) return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
   
-  // Jika Area belum dipilih (untuk User Biasa atau General Admin), tampilkan layar pilih area
   if (!selectedArea) return <AreaSelectionScreen user={user} onSelectArea={setSelectedArea} onLogout={handleLogout} />;
   
   if (['admin_area', 'general_admin'].includes(user.role)) return <AdminDashboard user={user} area={selectedArea} logout={handleLogout} />;
