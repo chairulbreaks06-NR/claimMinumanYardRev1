@@ -42,7 +42,7 @@ const getDayName = () => {
 };
 
 const YARDS = ['Yard Cakung', 'Yard Sukapura', 'Yard Jababeka'];
-const DAYS_OPTION = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu', 'Setiap Hari'];
+const DAYS_OPTION = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu', 'Daily'];
 
 const formatDateTime = (timestamp) => {
   if (!timestamp) return '-';
@@ -288,7 +288,7 @@ const AdminDashboard = ({ user, area, logout }) => {
   // State Inventory
   const [newItemName, setNewItemName] = useState('');
   const [newItemStock, setNewItemStock] = useState('');
-  const [newItemDay, setNewItemDay] = useState('Setiap Hari');
+  const [newItemDay, setNewItemDay] = useState('Daily');
   const [editingItem, setEditingItem] = useState(null); 
 
   // State User Management
@@ -367,7 +367,7 @@ const AdminDashboard = ({ user, area, logout }) => {
                 createdAt: serverTimestamp() 
             });
         }
-        setNewItemName(''); setNewItemStock(''); setNewItemDay('Setiap Hari'); showSuccess("Stok Disimpan");
+        setNewItemName(''); setNewItemStock(''); setNewItemDay('Daily'); showSuccess("Stok Disimpan");
     } catch(err) { alert("Error: " + err.message); }
   };
 
@@ -375,7 +375,7 @@ const AdminDashboard = ({ user, area, logout }) => {
       setEditingItem(item);
       setNewItemName(item.name);
       setNewItemStock(item.warehouseStock);
-      setNewItemDay(item.day || 'Setiap Hari');
+      setNewItemDay(item.day || 'Daily');
   }
 
   const handleAddUser = async (e) => {
@@ -518,7 +518,7 @@ const AdminDashboard = ({ user, area, logout }) => {
                         </select>
                     </div>
                     <button type="submit" className={`px-4 py-2 rounded-lg text-white font-bold text-sm w-full ${editingItem ? 'bg-orange-500' : 'bg-indigo-600'}`}>{editingItem ? 'Update' : 'Simpan'}</button>
-                    {editingItem && <button type="button" onClick={()=>{setEditingItem(null); setNewItemName(''); setNewItemStock(''); setNewItemDay('Setiap Hari');}} className="w-full bg-gray-100 text-gray-500 py-2 rounded-lg text-xs font-bold">Batal Edit</button>}
+                    {editingItem && <button type="button" onClick={()=>{setEditingItem(null); setNewItemName(''); setNewItemStock(''); setNewItemDay('Daily');}} className="w-full bg-gray-100 text-gray-500 py-2 rounded-lg text-xs font-bold">Batal Edit</button>}
                 </form>
             </div>
             <div className="space-y-2">
@@ -530,7 +530,7 @@ const AdminDashboard = ({ user, area, logout }) => {
                                 <div className="font-bold text-slate-700 text-sm">{item.name}</div>
                                 <div className="text-[10px] text-gray-400 flex items-center gap-2">
                                     <span>Sisa: {item.warehouseStock}</span>
-                                    <span className="bg-gray-100 px-1.5 rounded text-gray-500">{item.day || 'Setiap Hari'}</span>
+                                    <span className="bg-gray-100 px-1.5 rounded text-gray-500">{item.day || 'Daily'}</span>
                                 </div>
                             </div>
                         </div>
@@ -709,7 +709,7 @@ const EmployeeDashboard = ({ user, area, logout }) => {
         const allItems = snap.docs.map(d => ({id: d.id, ...d.data()}));
         const todayName = getDayName();
         const filteredMenu = allItems.filter(item => {
-            return !item.day || item.day === 'Setiap Hari' || item.day === todayName;
+            return !item.day || item.day === 'Daily' || item.day === todayName;
         });
         filteredMenu.sort((a,b) => a.name.localeCompare(b.name));
         setMenuItems(filteredMenu);
