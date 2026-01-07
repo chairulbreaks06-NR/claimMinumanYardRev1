@@ -285,7 +285,7 @@ const AdminDashboard = ({ user, area, logout }) => {
   const [filterType, setFilterType] = useState('today'); // 'today', 'week', 'month', 'custom'
   const [historySearch, setHistorySearch] = useState('');
   const [startDate, setStartDate] = useState(getTodayString()); // Default hari ini
-  const [endDate, setEndDate] = useState(getTodayString());     // Default hari ini
+  const [endDate, setEndDate] = useState(getTodayString());      // Default hari ini
 
   // State Inventory
   const [newItemName, setNewItemName] = useState('');
@@ -701,9 +701,9 @@ const AdminDashboard = ({ user, area, logout }) => {
 
          <div className="flex justify-between items-start mb-4 relative z-10">
              <div>
-                <h2 className="text-xl font-black text-white tracking-tight">Admin Panel</h2>
+                <h2 className="text-xl font-black text-white tracking-tight">Welcome, {user.displayName}</h2>
                 <p className="text-xs text-indigo-300 flex items-center gap-1 font-medium mt-0.5">
-                    <MapPin size={10} className="text-orange-400"/> {area}
+                    <MapPin size={10} className="text-orange-400"/> Admin Panel - {area}
                 </p>
              </div>
              <button onClick={logout} className="bg-white/10 backdrop-blur-sm p-2 rounded-full hover:bg-white/20 text-white transition-colors border border-white/5">
@@ -790,21 +790,21 @@ const EmployeeDashboard = ({ user, area, logout }) => {
     setIsClaiming(true);
     try {
         await runTransaction(db, async (t) => {
-             const invRef = doc(db, 'inventory', item.id);
-             const invDoc = await t.get(invRef);
-             if (!invDoc.exists()) throw new Error("Item tidak ditemukan!");
-             const currentStock = invDoc.data().warehouseStock;
-             
-             if (currentStock <= 0) throw new Error("Stok habis saat diproses!");
+              const invRef = doc(db, 'inventory', item.id);
+              const invDoc = await t.get(invRef);
+              if (!invDoc.exists()) throw new Error("Item tidak ditemukan!");
+              const currentStock = invDoc.data().warehouseStock;
+              
+              if (currentStock <= 0) throw new Error("Stok habis saat diproses!");
 
-             const newClaimRef = doc(collection(db, 'claims'));
-             t.set(newClaimRef, {
+              const newClaimRef = doc(collection(db, 'claims'));
+              t.set(newClaimRef, {
                 userId: user.uid, userName: user.displayName, userNrp: user.nrp || '-',
                 inventoryId: item.id, drinkName: item.name, date: getTodayString(),
                 status: 'completed', location: area, area: area, timestamp: serverTimestamp()
-             });
+              });
 
-             t.update(invRef, { warehouseStock: currentStock - 1 });
+              t.update(invRef, { warehouseStock: currentStock - 1 });
         });
         
         setShowCoupon(true);
@@ -963,10 +963,31 @@ const EmployeeDashboard = ({ user, area, logout }) => {
     <MobileWrapper className="bg-slate-50">
       {showCoupon && <CouponModal data={todaysClaim} onClose={() => setShowCoupon(false)} />}
       
-      {/* HEADER FIXED */}
-      <div className="bg-white px-6 py-4 rounded-b-3xl shadow-sm flex justify-between items-center w-full shrink-0 z-20">
-         <div><h2 className="text-lg font-bold text-slate-800">{activeTab === 'dashboard' ? 'Beranda' : activeTab === 'history' ? 'Riwayat' : 'Profil Saya'}</h2><p className="text-xs text-slate-400 flex items-center gap-1"><MapPin size={10}/> {area}</p></div>
-         <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-xs flex-shrink-0">{user.displayName.charAt(0)}</div>
+      {/* HEADER BARU: WELCOME + NAVIGASI DI ATAS */}
+      <div className="bg-white pt-4 pb-2 px-6 rounded-b-3xl shadow-sm z-30 flex flex-col w-full shrink-0">
+          <div className="flex justify-between items-start mb-4">
+              <div>
+                  <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Welcome Back,</p>
+                  <h2 className="text-lg font-black text-slate-800 leading-tight">{user.displayName}</h2>
+                  <p className="text-xs text-slate-400 flex items-center gap-1 mt-1"><MapPin size={10}/> {area}</p>
+              </div>
+              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-sm shadow-inner">
+                  {user.displayName.charAt(0)}
+              </div>
+          </div>
+
+          {/* MENU NAVIGASI PINDAH KE SINI */}
+          <div className="flex p-1 bg-slate-100 rounded-xl mb-1">
+              <button onClick={() => setActiveTab('dashboard')} className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'dashboard' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
+                  <LayoutDashboard size={14} strokeWidth={2.5}/> Dashboard
+              </button>
+              <button onClick={() => setActiveTab('history')} className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'history' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
+                  <History size={14} strokeWidth={2.5}/> Riwayat
+              </button>
+              <button onClick={() => setActiveTab('profile')} className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'profile' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
+                  <UserCircle size={14} strokeWidth={2.5}/> Profil
+              </button>
+          </div>
       </div>
       
       {/* SCROLLABLE CONTENT */}
@@ -974,22 +995,6 @@ const EmployeeDashboard = ({ user, area, logout }) => {
           {activeTab === 'dashboard' && renderDashboard()}
           {activeTab === 'history' && renderHistory()}
           {activeTab === 'profile' && renderProfile()}
-      </div>
-      
-      {/* FOOTER FIXED */}
-      <div className="bg-white border-t border-slate-100 py-3 px-6 pb-6 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] z-30 flex justify-between items-center shrink-0">
-          <button onClick={() => setActiveTab('dashboard')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'dashboard' ? 'text-blue-600 scale-105' : 'text-slate-400'}`}>
-              <div className={`p-1.5 rounded-xl ${activeTab === 'dashboard' ? 'bg-blue-50' : 'bg-transparent'}`}><LayoutDashboard size={22} strokeWidth={activeTab === 'dashboard' ? 2.5 : 2} /></div>
-              <span className="text-[10px] font-bold">Dashboard</span>
-          </button>
-          <button onClick={() => setActiveTab('history')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'history' ? 'text-blue-600 scale-105' : 'text-slate-400'}`}>
-              <div className={`p-1.5 rounded-xl ${activeTab === 'history' ? 'bg-blue-50' : 'bg-transparent'}`}><History size={22} strokeWidth={activeTab === 'history' ? 2.5 : 2} /></div>
-              <span className="text-[10px] font-bold">Riwayat</span>
-          </button>
-          <button onClick={() => setActiveTab('profile')} className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'profile' ? 'text-blue-600 scale-105' : 'text-slate-400'}`}>
-              <div className={`p-1.5 rounded-xl ${activeTab === 'profile' ? 'bg-blue-50' : 'bg-transparent'}`}><UserCircle size={22} strokeWidth={activeTab === 'profile' ? 2.5 : 2} /></div>
-              <span className="text-[10px] font-bold">Profil</span>
-          </button>
       </div>
     </MobileWrapper>
   );
