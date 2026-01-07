@@ -179,6 +179,9 @@ const LoginScreen = ({ onLoginSuccess }) => {
   const [error, setError] = useState('');
   const [imgError, setImgError] = useState(false);
 
+  // LOGO BARU DI SINI
+  const LOGO_URL = "https://github.com/chairulbreaks06-NR/ClaimSofdrinkYard/blob/main/logo%20Claim%20Sofdrink%20(1).png?raw=true";
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true); setError('');
@@ -205,7 +208,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
             <div className="bg-white p-5 rounded-[2rem] shadow-2xl shadow-indigo-500/20 animate-in zoom-in duration-500">
                 {!imgError ? (
                     <img 
-                        src="https://github.com/chairulbreaks06-NR/ClaimSofdrinkYard/blob/main/logo%20Claim%20Sofdrink%20(1).png?raw=true" 
+                        src={LOGO_URL} 
                         alt="Logo Claim Softdrink"
                         className="w-auto h-32 object-contain"
                         onError={() => setImgError(true)} 
@@ -238,7 +241,6 @@ const LoginScreen = ({ onLoginSuccess }) => {
             {loading ? <Loader2 className="animate-spin" /> : 'Masuk'} {!loading && <ArrowRight size={20} />}
           </button>
 
-          {/* TEXT PINDAH KE BAWAH TOMBOL */}
           <div className="w-full text-center mt-6">
             <p className="text-[10px] text-slate-500 font-medium">APLIKASI BY IRL92 &copy; 2026</p>
           </div>
