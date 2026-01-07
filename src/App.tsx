@@ -209,12 +209,12 @@ const LoginScreen = ({ onLoginSuccess }) => {
                 <img 
                     src={LOGO_URL} 
                     alt="Logo Claim Softdrink Baru"
-                    className="w-auto h-36 object-contain" // Sedikit memperbesar tinggi agar pas tanpa padding
+                    className="w-auto h-46 object-contain" // Sedikit memperbesar tinggi agar pas tanpa padding
                     key={LOGO_URL} 
                 />
             </div>
             <h1 className="text-white font-black text-2xl mt-2 tracking-tight"></h1>
-            <p className="text-blue-200 text-center text-sm opacity-80 mt-1">Digitalization Of EHS MKT</p>
+            <p className="text-blue-200 text-center text-sm opacity-80 mt-1"></p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full">
