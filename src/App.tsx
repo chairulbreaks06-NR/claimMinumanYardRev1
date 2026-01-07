@@ -233,14 +233,16 @@ const LoginScreen = ({ onLoginSuccess }) => {
               value={password} onChange={(e) => setPassword(e.target.value)} />
           </div>
           {error && <div className="bg-red-500/20 border border-red-500/50 p-2 rounded-lg"><p className="text-red-200 text-xs text-center font-bold">{error}</p></div>}
+          
           <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white p-4 rounded-xl font-bold shadow-lg shadow-blue-900/50 flex items-center justify-center gap-2 active:scale-95 transition-transform hover:bg-blue-500">
             {loading ? <Loader2 className="animate-spin" /> : 'Masuk'} {!loading && <ArrowRight size={20} />}
           </button>
-        </form>
-        
-        <div className="absolute bottom-6 w-full text-center left-0 px-8">
+
+          {/* TEXT PINDAH KE BAWAH TOMBOL */}
+          <div className="w-full text-center mt-6">
             <p className="text-[10px] text-slate-500 font-medium">APLIKASI BY IRL92 &copy; 2026</p>
-        </div>
+          </div>
+        </form>
       </div>
     </MobileWrapper>
   );
@@ -285,7 +287,7 @@ const AdminDashboard = ({ user, area, logout }) => {
   const [filterType, setFilterType] = useState('today'); // 'today', 'week', 'month', 'custom'
   const [historySearch, setHistorySearch] = useState('');
   const [startDate, setStartDate] = useState(getTodayString()); // Default hari ini
-  const [endDate, setEndDate] = useState(getTodayString());      // Default hari ini
+  const [endDate, setEndDate] = useState(getTodayString());       // Default hari ini
 
   // State Inventory
   const [newItemName, setNewItemName] = useState('');
@@ -631,7 +633,7 @@ const AdminDashboard = ({ user, area, logout }) => {
                         </div>
 
                         {newUserRole === 'admin_area' && (
-                             <div className="animate-in fade-in zoom-in-95 mt-2">
+                            <div className="animate-in fade-in zoom-in-95 mt-2">
                                 <label className="text-[10px] font-bold text-gray-400 ml-1">Pilih Otoritas Yard</label>
                                 <div className="relative">
                                     <Building2 size={14} className="absolute left-3 top-3 text-purple-400"/>
@@ -959,35 +961,47 @@ const EmployeeDashboard = ({ user, area, logout }) => {
       </div>
   );
 
+  // Komponen Menu Button untuk Header Baru User
+  const MenuButton = ({ id, label, icon: Icon }) => (
+      <button 
+        onClick={() => setActiveTab(id)} 
+        className={`flex-1 flex flex-col items-center justify-center py-2.5 rounded-lg transition-all duration-300 ${
+            activeTab === id 
+            ? 'bg-white text-indigo-900 shadow-md transform scale-100' 
+            : 'text-indigo-200 hover:bg-white/10 hover:text-white'
+        }`}
+      >
+        <Icon size={18} strokeWidth={activeTab === id ? 2.5 : 2} className="mb-1"/>
+        <span className="text-[10px] font-bold tracking-wide">{label}</span>
+      </button>
+  );
+
   return (
     <MobileWrapper className="bg-slate-50">
       {showCoupon && <CouponModal data={todaysClaim} onClose={() => setShowCoupon(false)} />}
       
-      {/* HEADER BARU: WELCOME + NAVIGASI DI ATAS */}
-      <div className="bg-white pt-4 pb-2 px-6 rounded-b-3xl shadow-sm z-30 flex flex-col w-full shrink-0">
-          <div className="flex justify-between items-start mb-4">
-              <div>
-                  <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Welcome Back,</p>
-                  <h2 className="text-lg font-black text-slate-800 leading-tight">{user.displayName}</h2>
-                  <p className="text-xs text-slate-400 flex items-center gap-1 mt-1"><MapPin size={10}/> {area}</p>
-              </div>
-              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-sm shadow-inner">
-                  {user.displayName.charAt(0)}
-              </div>
-          </div>
+      {/* HEADER BARU: MENGIKUTI STYLE ADMIN */}
+      <div className="bg-indigo-900 pt-6 pb-4 px-6 rounded-b-[2rem] shadow-xl flex flex-col w-full shrink-0 z-20 relative overflow-hidden">
+         <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-10 -mt-10 blur-2xl"></div>
+         <div className="absolute bottom-0 left-0 w-24 h-24 bg-indigo-500/20 rounded-full -ml-5 -mb-5 blur-xl"></div>
 
-          {/* MENU NAVIGASI PINDAH KE SINI */}
-          <div className="flex p-1 bg-slate-100 rounded-xl mb-1">
-              <button onClick={() => setActiveTab('dashboard')} className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'dashboard' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
-                  <LayoutDashboard size={14} strokeWidth={2.5}/> Dashboard
-              </button>
-              <button onClick={() => setActiveTab('history')} className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'history' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
-                  <History size={14} strokeWidth={2.5}/> Riwayat
-              </button>
-              <button onClick={() => setActiveTab('profile')} className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'profile' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
-                  <UserCircle size={14} strokeWidth={2.5}/> Profil
-              </button>
-          </div>
+         <div className="flex justify-between items-start mb-4 relative z-10">
+             <div>
+                <h2 className="text-xl font-black text-white tracking-tight">Halo, {user.displayName}</h2>
+                <p className="text-xs text-indigo-300 flex items-center gap-1 font-medium mt-0.5">
+                    <MapPin size={10} className="text-orange-400"/> {area}
+                </p>
+             </div>
+             <button onClick={logout} className="bg-white/10 backdrop-blur-sm p-2 rounded-full hover:bg-white/20 text-white transition-colors border border-white/5">
+                <LogOut size={16}/>
+             </button>
+         </div>
+
+         <div className="bg-indigo-950/50 p-1.5 rounded-xl flex gap-1 backdrop-blur-md border border-white/5 relative z-10">
+            <MenuButton id="dashboard" label="Menu" icon={LayoutDashboard} />
+            <MenuButton id="history" label="Riwayat" icon={History} />
+            <MenuButton id="profile" label="Profil" icon={UserCircle} />
+         </div>
       </div>
       
       {/* SCROLLABLE CONTENT */}
