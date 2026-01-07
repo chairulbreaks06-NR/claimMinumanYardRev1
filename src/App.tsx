@@ -177,9 +177,8 @@ const LoginScreen = ({ onLoginSuccess }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [imgError, setImgError] = useState(false);
 
-  // LOGO BARU DI SINI
+  // SAYA HAPUS LOGIKA FALLBACK DAN PAKSA GUNAKAN URL INI
   const LOGO_URL = "https://github.com/chairulbreaks06-NR/ClaimSofdrinkYard/blob/main/logo%20Claim%20Sofdrink%20(1).png?raw=true";
 
   const handleLogin = async (e) => {
@@ -206,19 +205,16 @@ const LoginScreen = ({ onLoginSuccess }) => {
         
         <div className="flex flex-col items-center justify-center mb-8">
             <div className="bg-white p-5 rounded-[2rem] shadow-2xl shadow-indigo-500/20 animate-in zoom-in duration-500">
-                {!imgError ? (
-                    <img 
-                        src={LOGO_URL} 
-                        alt="Logo Claim Softdrink"
-                        className="w-auto h-32 object-contain"
-                        onError={() => setImgError(true)} 
-                    />
-                ) : (
-                    <div className="w-32 h-32 flex flex-col items-center justify-center text-indigo-600">
-                        <Coffee size={48} strokeWidth={2.5} />
-                        <span className="text-[10px] font-black mt-2 uppercase tracking-widest">Claim Softdrink</span>
-                    </div>
-                )}
+                {/* LOGIKA 'onError' DIHAPUS.
+                   Jika gambar rusak/private, akan muncul icon "broken image" browser.
+                   Ini memastikan kita tahu apakah linknya bekerja atau tidak.
+                */}
+                <img 
+                    src={LOGO_URL} 
+                    alt="Logo Claim Softdrink Baru"
+                    className="w-auto h-32 object-contain"
+                    key={LOGO_URL} // Memaksa React untuk me-refresh gambar jika URL berubah
+                />
             </div>
             <h1 className="text-white font-black text-2xl mt-6 tracking-tight"></h1>
             <p className="text-blue-200 text-center text-sm opacity-80 mt-1">Digitalization Of EHS MKT</p>
