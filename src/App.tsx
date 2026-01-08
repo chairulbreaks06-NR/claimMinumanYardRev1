@@ -133,8 +133,15 @@ const MobileWrapper = ({ children, className = "" }) => (
   <div className="fixed inset-0 bg-gray-900 flex justify-center items-center font-sans overflow-hidden touch-none print:relative print:bg-white print:block print:h-auto print:overflow-visible">
     <style>{`
       @media print {
-        @page { size: A4 portrait; margin: 1.5cm; }
-        body { background: white; -webkit-print-color-adjust: exact; font-family: sans-serif; }
+        @page { size: A4 portrait; margin: 1cm; }
+        
+        /* Force White Backgrounds */
+        body, .mobile-container, .fixed { 
+            background-color: white !important; 
+            background: white !important;
+            color: black !important;
+        }
+        
         .no-print { display: none !important; }
         .print-only { display: block !important; }
         
@@ -145,14 +152,19 @@ const MobileWrapper = ({ children, className = "" }) => (
             width: 100% !important;
             height: auto !important;
             overflow: visible !important;
+            border: none !important;
             border-radius: 0 !important;
-            background: white !important;
         }
 
+        /* Ensure Colors Print */
+        .bg-orange-400 { background-color: #fb923c !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .bg-teal-400 { background-color: #2dd4bf !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .bg-slate-100 { background-color: #f1f5f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
         /* Table Styling for Print */
-        table { width: 100%; border-collapse: collapse; font-size: 10pt; }
-        th, td { border: 1px solid #000; padding: 6px; text-align: left; }
-        th { background-color: #f0f0f0 !important; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+        th, td { border: 1px solid #ccc; padding: 4px; text-align: left; }
+        th { background-color: #f8f8f8 !important; font-weight: bold; -webkit-print-color-adjust: exact; }
         
         /* Remove Scrollbars */
         ::-webkit-scrollbar { display: none; }
@@ -414,9 +426,9 @@ const AdminDashboard = ({ user, area, logout }) => {
               });
 
               filteredGlobal.sort((a,b) => {
-                   const timeA = a.timestamp?.seconds || 0;
-                   const timeB = b.timestamp?.seconds || 0;
-                   return timeB - timeA;
+                    const timeA = a.timestamp?.seconds || 0;
+                    const timeB = b.timestamp?.seconds || 0;
+                    return timeB - timeA;
               });
               setGlobalClaims(filteredGlobal);
           });
@@ -573,8 +585,8 @@ const AdminDashboard = ({ user, area, logout }) => {
               stats.total += 1;
           } else {
              // Handle if area not in initial list (optional)
-              stats.total += 1;
-              if (isFood) stats.totalFood += 1; else stats.totalDrink += 1;
+             stats.total += 1;
+             if (isFood) stats.totalFood += 1; else stats.totalDrink += 1;
           }
       });
       return stats;
@@ -767,34 +779,49 @@ const AdminDashboard = ({ user, area, logout }) => {
                 </div>
             </div>
 
-            {/* CHART 3 AREA */}
+            {/* CHART 3 AREA - HORIZONTAL SIMPLE */}
             <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 mb-6 break-inside-avoid">
                 <h4 className="font-bold text-slate-700 mb-4 text-sm flex items-center gap-2"><BarChart3 size={16}/> Grafik 3 Area</h4>
-                <div className="flex items-end justify-between h-40 gap-4 pt-4">
+                <div className="space-y-4 pt-2">
                     {YARDS.map(yard => {
                         const data = globalStatsData[yard];
-                        const maxVal = Math.max(10, globalStatsData.total); // Scale calculation
-                        const foodH = (data.food / maxVal) * 100;
-                        const drinkH = (data.drink / maxVal) * 100;
+                        const totalArea = data.food + data.drink;
+                        const maxVal = Math.max(1, globalStatsData.total); 
+                        // Persentase relatif terhadap total keseluruhan agar grafik proporsional
+                        const foodPct = globalStatsData.total > 0 ? (data.food / globalStatsData.total) * 100 : 0;
+                        const drinkPct = globalStatsData.total > 0 ? (data.drink / globalStatsData.total) * 100 : 0;
+                        
+                        // ATAU: Persentase bar penuh 100% jika ingin melihat komposisi per area?
+                        // Mari gunakan simple bar relative terhadap max value agar terlihat perbandingannya
+                        // Kita pakai logic simple: Max width 100% = total claim terbesar.
                         
                         return (
-                            <div key={yard} className="flex-1 flex flex-col items-center gap-2 group">
-                                <div className="w-full flex justify-center gap-1 h-full items-end">
-                                    <div className="w-4 bg-orange-400 rounded-t-sm relative group-hover:opacity-80 transition-all print:border print:border-black" style={{height: `${Math.max(foodH, 5)}%`}}>
-                                        <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] font-bold text-slate-600">{data.food}</span>
-                                    </div>
-                                    <div className="w-4 bg-teal-400 rounded-t-sm relative group-hover:opacity-80 transition-all print:border print:border-black" style={{height: `${Math.max(drinkH, 5)}%`}}>
-                                        <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] font-bold text-slate-600">{data.drink}</span>
-                                    </div>
+                            <div key={yard} className="mb-2">
+                                <div className="flex justify-between items-center mb-1">
+                                    <span className="font-bold text-xs text-slate-700">{yard}</span>
+                                    <span className="text-[10px] text-gray-400 font-bold">{totalArea} Klaim</span>
                                 </div>
-                                <span className="text-[9px] font-bold text-slate-500 text-center leading-tight">{yard.replace('Yard ', '')}</span>
+                                
+                                {/* Bar Makanan */}
+                                <div className="flex items-center gap-2 mb-1">
+                                     <span className="text-[10px] w-8 text-gray-500">Makan</span>
+                                     <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                                         <div className="h-full bg-orange-400 rounded-full" style={{width: `${data.food > 0 ? Math.max(foodPct * 2, 5) : 0}%`}}></div>
+                                     </div>
+                                     <span className="text-[10px] font-bold text-slate-700 w-6 text-right">{data.food}</span>
+                                </div>
+
+                                {/* Bar Minuman */}
+                                <div className="flex items-center gap-2">
+                                     <span className="text-[10px] w-8 text-gray-500">Minum</span>
+                                     <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                                         <div className="h-full bg-teal-400 rounded-full" style={{width: `${data.drink > 0 ? Math.max(drinkPct * 2, 5) : 0}%`}}></div>
+                                     </div>
+                                     <span className="text-[10px] font-bold text-slate-700 w-6 text-right">{data.drink}</span>
+                                </div>
                             </div>
                         )
                     })}
-                </div>
-                <div className="flex justify-center gap-4 mt-4">
-                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-orange-400 rounded-full print:border print:border-black"></div><span className="text-[10px] text-gray-500">Makan</span></div>
-                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-teal-400 rounded-full print:border print:border-black"></div><span className="text-[10px] text-gray-500">Minum</span></div>
                 </div>
             </div>
 
