@@ -11,7 +11,7 @@ import {
   User, Edit, Trash2, Building2, WifiOff,
   LayoutDashboard, History, UserCircle, Search, Briefcase, 
   Loader2, BarChart3, TrendingUp, CalendarDays, FileSpreadsheet, Download, Filter,
-  Utensils, AlertCircle
+  Utensils, AlertCircle, Globe, Printer, FileText
 } from 'lucide-react';
 
 // --- 1. Firebase Configuration ---
@@ -96,7 +96,7 @@ const exportToCSV = (data, fileName) => {
 const SuccessModal = ({ message, onClose }) => {
     if (!message) return null;
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in print:hidden">
             <div className="bg-white p-6 rounded-2xl shadow-2xl flex flex-col items-center animate-in zoom-in-95 w-3/4 max-w-sm">
                 <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4">
                     <CheckCircle size={32} />
@@ -123,20 +123,33 @@ const ConnectionStatus = () => {
     }, []);
     if (isOnline) return null;
     return (
-        <div className="bg-red-500 text-white text-[10px] font-bold text-center py-1 absolute top-0 w-full z-50 flex items-center justify-center gap-1">
+        <div className="bg-red-500 text-white text-[10px] font-bold text-center py-1 absolute top-0 w-full z-50 flex items-center justify-center gap-1 print:hidden">
             <WifiOff size={12} /> MODE OFFLINE
         </div>
     );
 };
 
 const MobileWrapper = ({ children, className = "" }) => (
-  <div className="fixed inset-0 bg-gray-900 flex justify-center items-center font-sans overflow-hidden touch-none">
+  <div className="fixed inset-0 bg-gray-900 flex justify-center items-center font-sans overflow-hidden touch-none print:relative print:bg-white print:block print:h-auto print:overflow-visible">
     <style>{`
+      @media print {
+        @page { size: A4; margin: 1cm; }
+        body { background: white; -webkit-print-color-adjust: exact; }
+        .no-print { display: none !important; }
+        .print-only { display: block !important; }
+        .mobile-container { 
+            box-shadow: none !important; 
+            max-width: 100% !important; 
+            height: auto !important;
+            overflow: visible !important;
+            border-radius: 0 !important;
+        }
+      }
       body { overflow: hidden; position: fixed; width: 100%; height: 100%; }
       * { -webkit-tap-highlight-color: transparent; }
     `}</style>
     
-    <div className={`w-full h-full md:h-[95dvh] md:max-w-md md:rounded-[2.5rem] bg-gray-50 flex flex-col relative overflow-hidden shadow-2xl ${className}`}>
+    <div className={`w-full h-full md:h-[95dvh] md:max-w-md md:rounded-[2.5rem] bg-gray-50 flex flex-col relative overflow-hidden shadow-2xl mobile-container ${className}`}>
       <ConnectionStatus />
       {children}
     </div>
@@ -147,7 +160,7 @@ const CouponModal = ({ data, onClose }) => {
   if (!data) return null;
   const isFood = data.category === 'Makanan';
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300 print:hidden">
       <div className="bg-white w-full max-w-xs rounded-3xl overflow-hidden relative shadow-2xl animate-in zoom-in-95 duration-300">
         <div className={`${isFood ? 'bg-orange-500' : 'bg-blue-600'} h-32 flex items-center justify-center text-center p-4 relative overflow-hidden`}>
             <div className="absolute top-0 left-0 w-full h-full bg-white/10 opacity-50" style={{backgroundImage: 'radial-gradient(circle, #fff 2px, transparent 2.5px)', backgroundSize: '10px 10px'}}></div>
@@ -279,20 +292,25 @@ const AreaSelectionScreen = ({ user, onSelectArea, onLogout }) => {
   );
 };
 
-// --- 6. Admin Dashboard ---
+// --- 6. Admin Dashboard (Updated with Global Stats) ---
 const AdminDashboard = ({ user, area, logout }) => {
   const [activeTab, setActiveTab] = useState('history'); 
   const [successMsg, setSuccessMsg] = useState(null);
   
-  const [allClaims, setAllClaims] = useState([]);
+  const [allClaims, setAllClaims] = useState([]); // Local Area Claims
+  const [globalClaims, setGlobalClaims] = useState([]); // For General Admin (All Areas)
   const [inventory, setInventory] = useState([]);
   const [usersList, setUsersList] = useState([]);
   
-  // Filter
+  // Filter Local
   const [filterType, setFilterType] = useState('today'); 
   const [historySearch, setHistorySearch] = useState('');
   const [startDate, setStartDate] = useState(getTodayString());
   const [endDate, setEndDate] = useState(getTodayString());
+
+  // Filter Global
+  const [globalStartDate, setGlobalStartDate] = useState(getTodayString());
+  const [globalEndDate, setGlobalEndDate] = useState(getTodayString());
 
   // Stok
   const [newItemName, setNewItemName] = useState('');
@@ -353,19 +371,37 @@ const AdminDashboard = ({ user, area, logout }) => {
 
   useEffect(() => {
       const q = query(collection(db, 'claims'), where('area', '==', area));
-      
       return onSnapshot(q, (snap) => {
           const fetchedData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-          
           fetchedData.sort((a, b) => {
               const timeA = a.timestamp?.seconds || 0;
               const timeB = b.timestamp?.seconds || 0;
               return timeB - timeA;
           });
-
           setAllClaims(fetchedData);
       });
   }, [area]);
+
+  // Fetch GLOBAL DATA only if General Admin and Tab is Global
+  useEffect(() => {
+      if (user.role === 'general_admin' && activeTab === 'global') {
+          // Fetch ALL claims without area filter
+          const q = query(collection(db, 'claims'));
+          return onSnapshot(q, (snap) => {
+              const allData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+              // Filter by Date Range in Memory to allow flexible filtering
+              const filteredGlobal = allData.filter(item => {
+                  return item.date >= globalStartDate && item.date <= globalEndDate;
+              });
+              filteredGlobal.sort((a,b) => {
+                   const timeA = a.timestamp?.seconds || 0;
+                   const timeB = b.timestamp?.seconds || 0;
+                   return timeB - timeA;
+              });
+              setGlobalClaims(filteredGlobal);
+          });
+      }
+  }, [user.role, activeTab, globalStartDate, globalEndDate]);
 
   useEffect(() => {
     if(activeTab === 'manage' && user.role !== 'user') {
@@ -491,6 +527,35 @@ const AdminDashboard = ({ user, area, logout }) => {
       return { totalClaims, chartData };
   }, [allClaims, startDate, endDate]); 
 
+  // --- NEW: Global Stats Data Calculation ---
+  const globalStatsData = useMemo(() => {
+      const stats = {
+          'Yard Cakung': { food: 0, drink: 0 },
+          'Yard Sukapura': { food: 0, drink: 0 },
+          'Yard Jababeka': { food: 0, drink: 0 },
+          total: 0,
+          totalFood: 0,
+          totalDrink: 0
+      };
+
+      globalClaims.forEach(claim => {
+          const areaName = claim.area || 'Unknown';
+          const isFood = claim.category === 'Makanan';
+          
+          if (stats[areaName]) {
+              if (isFood) {
+                  stats[areaName].food += 1;
+                  stats.totalFood += 1;
+              } else {
+                  stats[areaName].drink += 1;
+                  stats.totalDrink += 1;
+              }
+              stats.total += 1;
+          }
+      });
+      return stats;
+  }, [globalClaims]);
+
   const renderHistory = () => {
       const filteredClaims = allClaims.filter(item => {
           const matchName = item.userName.toLowerCase().includes(historySearch.toLowerCase());
@@ -593,6 +658,133 @@ const AdminDashboard = ({ user, area, logout }) => {
           </div>
       </div>
   );
+
+  // --- NEW: Global Stats & Report Render Function ---
+  const renderGlobalStats = () => {
+    // Fungsi Print untuk Download PDF via Browser
+    const handlePrint = () => {
+        window.print();
+    };
+
+    return (
+        <div className="p-6 pb-28 w-full animate-in fade-in slide-in-from-bottom-4">
+            <div className="flex justify-between items-center mb-6 no-print">
+                <h3 className="font-bold text-slate-700 text-xl flex items-center gap-2"><Globe size={20}/> Statistik General</h3>
+                <button onClick={handlePrint} className="bg-slate-800 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2">
+                    <Printer size={14}/> Download PDF
+                </button>
+            </div>
+
+            {/* Filter Date */}
+            <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-6 no-print">
+                <h4 className="text-xs font-bold text-gray-500 mb-2">Filter Tanggal Laporan</h4>
+                <div className="grid grid-cols-2 gap-2">
+                    <input type="date" value={globalStartDate} onChange={e => setGlobalStartDate(e.target.value)} 
+                        className="bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs text-gray-700 font-bold"/>
+                    <input type="date" value={globalEndDate} onChange={e => setGlobalEndDate(e.target.value)} 
+                        className="bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs text-gray-700 font-bold"/>
+                </div>
+            </div>
+
+            {/* Summary Cards */}
+            <div className="grid grid-cols-3 gap-2 mb-6">
+                <div className="bg-blue-600 p-3 rounded-xl text-white text-center shadow-md">
+                    <p className="text-[10px] opacity-80 mb-1">Total</p>
+                    <h2 className="text-xl font-black">{globalStatsData.total}</h2>
+                </div>
+                <div className="bg-orange-500 p-3 rounded-xl text-white text-center shadow-md">
+                    <p className="text-[10px] opacity-80 mb-1">Makan</p>
+                    <h2 className="text-xl font-black">{globalStatsData.totalFood}</h2>
+                </div>
+                <div className="bg-teal-500 p-3 rounded-xl text-white text-center shadow-md">
+                    <p className="text-[10px] opacity-80 mb-1">Minum</p>
+                    <h2 className="text-xl font-black">{globalStatsData.totalDrink}</h2>
+                </div>
+            </div>
+
+            {/* CHART 3 AREA */}
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 mb-6 break-inside-avoid">
+                <h4 className="font-bold text-slate-700 mb-4 text-sm flex items-center gap-2"><BarChart3 size={16}/> Grafik 3 Area</h4>
+                <div className="flex items-end justify-between h-40 gap-4 pt-4">
+                    {YARDS.map(yard => {
+                        const data = globalStatsData[yard];
+                        const maxVal = Math.max(10, globalStatsData.total); // Scale calculation
+                        const foodH = (data.food / maxVal) * 100;
+                        const drinkH = (data.drink / maxVal) * 100;
+                        
+                        return (
+                            <div key={yard} className="flex-1 flex flex-col items-center gap-2 group">
+                                <div className="w-full flex justify-center gap-1 h-full items-end">
+                                    <div className="w-4 bg-orange-400 rounded-t-sm relative group-hover:opacity-80 transition-all" style={{height: `${Math.max(foodH, 5)}%`}}>
+                                        <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] font-bold text-slate-600">{data.food}</span>
+                                    </div>
+                                    <div className="w-4 bg-teal-400 rounded-t-sm relative group-hover:opacity-80 transition-all" style={{height: `${Math.max(drinkH, 5)}%`}}>
+                                        <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] font-bold text-slate-600">{data.drink}</span>
+                                    </div>
+                                </div>
+                                <span className="text-[9px] font-bold text-slate-500 text-center leading-tight">{yard.replace('Yard ', '')}</span>
+                            </div>
+                        )
+                    })}
+                </div>
+                <div className="flex justify-center gap-4 mt-4">
+                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-orange-400 rounded-full"></div><span className="text-[10px] text-gray-500">Makan</span></div>
+                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-teal-400 rounded-full"></div><span className="text-[10px] text-gray-500">Minum</span></div>
+                </div>
+            </div>
+
+            {/* TABLE REPORT */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden break-inside-avoid">
+                <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                    <h4 className="font-bold text-slate-700 text-sm flex items-center gap-2"><FileText size={16}/> Laporan Detail</h4>
+                    <span className="text-[10px] text-gray-400">{globalClaims.length} Data</span>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left text-[10px]">
+                        <thead className="bg-slate-50 text-slate-500 uppercase font-bold">
+                            <tr>
+                                <th className="p-3">Tgl/Jam</th>
+                                <th className="p-3">Nama</th>
+                                <th className="p-3">Lokasi</th>
+                                <th className="p-3">Menu</th>
+                                <th className="p-3 text-right">Kat</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {globalClaims.map(item => (
+                                <tr key={item.id} className="hover:bg-slate-50">
+                                    <td className="p-3 text-gray-500">
+                                        <div className="font-bold text-slate-700">{item.date}</div>
+                                        <div>{formatDateTime(item.timestamp).split(',')[1]}</div>
+                                    </td>
+                                    <td className="p-3 font-bold text-slate-700">{item.userName}</td>
+                                    <td className="p-3 text-gray-500">{item.area}</td>
+                                    <td className="p-3 text-slate-700">{item.itemName}</td>
+                                    <td className="p-3 text-right">
+                                        <span className={`px-1.5 py-0.5 rounded font-bold ${item.category === 'Makanan' ? 'bg-orange-100 text-orange-600' : 'bg-teal-100 text-teal-600'}`}>
+                                            {item.category === 'Makanan' ? 'M' : 'D'}
+                                        </span>
+                                    </td>
+                                </tr>
+                            ))}
+                            {globalClaims.length === 0 && (
+                                <tr>
+                                    <td colSpan="5" className="p-6 text-center text-gray-400">Tidak ada data di rentang tanggal ini.</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            {/* Print Footer */}
+            <div className="hidden print:block mt-8 text-center text-[10px] text-gray-400">
+                <p>Dicetak pada: {new Date().toLocaleString('id-ID')}</p>
+                <p>Sistem Klaim Makan & Minum PT GSI</p>
+            </div>
+        </div>
+    );
+  };
 
   const renderManage = () => (
       <div className="p-6 pb-28 space-y-8 w-full animate-in fade-in slide-in-from-bottom-4">
@@ -772,7 +964,7 @@ const AdminDashboard = ({ user, area, logout }) => {
     <MobileWrapper className="bg-slate-50">
       <SuccessModal message={successMsg} onClose={() => setSuccessMsg(null)} />
       
-      <div className="bg-indigo-900 pt-6 pb-4 px-6 rounded-b-[2rem] shadow-xl flex flex-col w-full shrink-0 z-20 relative overflow-hidden">
+      <div className="bg-indigo-900 pt-6 pb-4 px-6 rounded-b-[2rem] shadow-xl flex flex-col w-full shrink-0 z-20 relative overflow-hidden print:hidden">
          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-10 -mt-10 blur-2xl"></div>
          <div className="absolute bottom-0 left-0 w-24 h-24 bg-indigo-500/20 rounded-full -ml-5 -mb-5 blur-xl"></div>
 
@@ -792,13 +984,15 @@ const AdminDashboard = ({ user, area, logout }) => {
             <MenuButton id="history" label="Riwayat" icon={History} />
             <MenuButton id="stats" label="Statistik" icon={BarChart3} />
             <MenuButton id="manage" label="Kelola" icon={Briefcase} />
+            {user.role === 'general_admin' && <MenuButton id="global" label="Global" icon={Globe} />}
          </div>
       </div>
       
-      <div className="flex-1 overflow-y-auto w-full overscroll-none scrollbar-hide bg-slate-50">
+      <div className="flex-1 overflow-y-auto w-full overscroll-none scrollbar-hide bg-slate-50 print:bg-white print:overflow-visible print:h-auto">
           {activeTab === 'history' && renderHistory()}
           {activeTab === 'stats' && renderStats()}
           {activeTab === 'manage' && renderManage()}
+          {user.role === 'general_admin' && activeTab === 'global' && renderGlobalStats()}
       </div>
     </MobileWrapper>
   );
