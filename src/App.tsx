@@ -713,7 +713,7 @@ const AdminDashboard = ({ user, area, logout }) => {
             {/* Print Header */}
             <div className="hidden print-only mb-6 text-center border-b pb-4">
                 <h2 className="text-2xl font-black text-slate-800 uppercase">Laporan Klaim Makan & Minum</h2>
-                <p className="text-sm text-gray-500">PT Global Service Indonesia</p>
+                <p className="text-sm text-gray-500">YARD MARKETING DIVISI</p>
                 <div className="flex justify-center gap-4 mt-2 text-xs font-bold text-gray-600">
                     <span>Periode: {globalStartDate} s/d {globalEndDate}</span>
                     <span>Area: {globalAreaFilter}</span>
@@ -872,7 +872,7 @@ const AdminDashboard = ({ user, area, logout }) => {
             {/* Print Footer */}
             <div className="hidden print-only mt-8 text-center text-[10px] text-gray-400">
                 <p>Dicetak pada: {new Date().toLocaleString('id-ID')}</p>
-                <p>Sistem Klaim Makan & Minum PT GSI</p>
+                <p>Aplikasi By IRL92</p>
             </div>
         </div>
     );
