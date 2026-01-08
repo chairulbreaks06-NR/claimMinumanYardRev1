@@ -6,11 +6,12 @@ import {
   runTransaction, deleteDoc, getDocs, enableIndexedDbPersistence 
 } from 'firebase/firestore';
 import { 
-  Coffee, ClipboardList, Users, CheckCircle, Ticket, 
+  CupSoda, ClipboardList, Users, CheckCircle, Ticket, 
   LogOut, Package, MapPin, Clock, ArrowRight, Lock, 
   User, Edit, Trash2, Building2, WifiOff,
   LayoutDashboard, History, UserCircle, Search, Briefcase, 
-  Loader2, BarChart3, TrendingUp, CalendarDays, FileSpreadsheet, Download, Filter
+  Loader2, BarChart3, TrendingUp, CalendarDays, FileSpreadsheet, Download, Filter,
+  Utensils, AlertCircle
 } from 'lucide-react';
 
 // --- 1. Firebase Configuration ---
@@ -41,8 +42,20 @@ const getDayName = () => {
     return days[new Date().getDay()];
 };
 
+// Cek Waktu Cut Off (07:30 - 19:00)
+const isClaimWindowOpen = () => {
+    const now = new Date();
+    const hour = now.getHours();
+    const min = now.getMinutes();
+    const currentMinutes = hour * 60 + min;
+    const startMinutes = 7 * 60 + 30; // 07:30
+    const endMinutes = 19 * 60;       // 19:00
+    return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+};
+
 const YARDS = ['Yard Cakung', 'Yard Sukapura', 'Yard Jababeka'];
 const DAYS_OPTION = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu', 'Daily'];
+const CATEGORY_OPTION = ['Makanan', 'Minuman']; 
 
 const formatDateTime = (timestamp) => {
   if (!timestamp) return '-';
@@ -59,13 +72,14 @@ const exportToCSV = (data, fileName) => {
         return;
     }
     let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "Tanggal,Waktu,Nama Karyawan,NRP,Nama Minuman,Lokasi,Status\n";
+    csvContent += "Tanggal,Waktu,Nama Karyawan,NRP,Menu,Kategori,Lokasi,Status\n";
     data.forEach(row => {
         const dateTimeStr = formatDateTime(row.timestamp);
         const timeStr = dateTimeStr.split(', ')[1] || '-';
         const sanitizedName = row.userName ? row.userName.replace(/,/g, " ") : "-";
-        const sanitizedDrink = row.drinkName ? row.drinkName.replace(/,/g, " ") : "-";
-        const rowString = `${row.date},${timeStr},"${sanitizedName}","${row.userNrp || '-'}","${sanitizedDrink}","${row.area || '-'}",Sukses`;
+        const sanitizedItem = row.itemName ? row.itemName.replace(/,/g, " ") : "-";
+        const category = row.category || 'Minuman';
+        const rowString = `${row.date},${timeStr},"${sanitizedName}","${row.userNrp || '-'}","${sanitizedItem}","${category}","${row.area || '-'}",Sukses`;
         csvContent += rowString + "\n";
     });
     const encodedUri = encodeURI(csvContent);
@@ -131,22 +145,23 @@ const MobileWrapper = ({ children, className = "" }) => (
 
 const CouponModal = ({ data, onClose }) => {
   if (!data) return null;
+  const isFood = data.category === 'Makanan';
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
       <div className="bg-white w-full max-w-xs rounded-3xl overflow-hidden relative shadow-2xl animate-in zoom-in-95 duration-300">
-        <div className="bg-blue-600 h-32 flex items-center justify-center text-center p-4 relative overflow-hidden">
+        <div className={`${isFood ? 'bg-orange-500' : 'bg-blue-600'} h-32 flex items-center justify-center text-center p-4 relative overflow-hidden`}>
             <div className="absolute top-0 left-0 w-full h-full bg-white/10 opacity-50" style={{backgroundImage: 'radial-gradient(circle, #fff 2px, transparent 2.5px)', backgroundSize: '10px 10px'}}></div>
             <div className="relative z-10">
                 <div className="bg-white/20 p-3 rounded-full inline-block mb-2 backdrop-blur-sm">
-                  <Ticket className="text-white" size={32} />
+                  {isFood ? <Utensils className="text-white" size={32} /> : <CupSoda className="text-white" size={32} />}
                 </div>
-                <h3 className="text-white font-bold text-xl tracking-wider shadow-sm">KUPON DIGITAL</h3>
-                <p className="text-blue-100 text-[10px] uppercase font-bold tracking-widest">{data.location}</p>
+                <h3 className="text-white font-bold text-xl tracking-wider shadow-sm">E-TICKET {isFood ? 'MAKAN' : 'MINUM'}</h3>
+                <p className={`${isFood ? 'text-orange-100' : 'text-blue-100'} text-[10px] uppercase font-bold tracking-widest`}>{data.location}</p>
             </div>
         </div>
         
         <div className="p-6 pt-6 text-center bg-white relative">
-            <h2 className="text-2xl font-black text-slate-800 mb-2 leading-tight">{data.drinkName}</h2>
+            <h2 className="text-2xl font-black text-slate-800 mb-2 leading-tight">{data.itemName}</h2>
             <div className="border-2 border-dashed rounded-xl p-3 mb-6 border-green-400 bg-green-50">
                 <div className="text-xl font-black uppercase tracking-widest text-green-600">
                   BERHASIL KLAIM
@@ -178,7 +193,6 @@ const LoginScreen = ({ onLoginSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // SAYA HAPUS LOGIKA FALLBACK DAN PAKSA GUNAKAN URL INI
   const LOGO_URL = "https://github.com/chairulbreaks06-NR/ClaimSofdrinkYard/blob/main/logo%20Claim%20Sofdrink%20(1).png?raw=true";
 
   const handleLogin = async (e) => {
@@ -202,19 +216,15 @@ const LoginScreen = ({ onLoginSuccess }) => {
   return (
     <MobileWrapper className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900">
       <div className="flex-1 flex flex-col justify-center px-8 relative z-10 w-full overflow-y-auto">
-        
         <div className="flex flex-col items-center justify-center mb-8">
-            {/* PERUBAHAN DI SINI: Menghapus kelas bg-white, p-5, rounded, shadow */}
             <div className="mb-4 animate-in zoom-in duration-500">
                 <img 
                     src={LOGO_URL} 
                     alt="Logo Claim Softdrink Baru"
-                    className="w-auto h-64 object-contain" // Sedikit memperbesar tinggi agar pas tanpa padding
+                    className="w-auto h-64 object-contain"
                     key={LOGO_URL} 
                 />
             </div>
-            <h1 className="text-white font-black text-2xl mt-2 tracking-tight"></h1>
-            <p className="text-blue-200 text-center text-sm opacity-80 mt-1"></p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full">
@@ -269,7 +279,7 @@ const AreaSelectionScreen = ({ user, onSelectArea, onLogout }) => {
   );
 };
 
-// --- 6. Admin Dashboard (FIXED & UPDATED) ---
+// --- 6. Admin Dashboard ---
 const AdminDashboard = ({ user, area, logout }) => {
   const [activeTab, setActiveTab] = useState('history'); 
   const [successMsg, setSuccessMsg] = useState(null);
@@ -278,24 +288,27 @@ const AdminDashboard = ({ user, area, logout }) => {
   const [inventory, setInventory] = useState([]);
   const [usersList, setUsersList] = useState([]);
   
-  // State Filter Baru
-  const [filterType, setFilterType] = useState('today'); // 'today', 'week', 'month', 'custom'
+  // Filter
+  const [filterType, setFilterType] = useState('today'); 
   const [historySearch, setHistorySearch] = useState('');
-  const [startDate, setStartDate] = useState(getTodayString()); // Default hari ini
-  const [endDate, setEndDate] = useState(getTodayString());       // Default hari ini
+  const [startDate, setStartDate] = useState(getTodayString());
+  const [endDate, setEndDate] = useState(getTodayString());
 
-  // State Inventory
+  // Stok
   const [newItemName, setNewItemName] = useState('');
   const [newItemStock, setNewItemStock] = useState('');
   const [newItemDay, setNewItemDay] = useState('Daily');
+  const [newItemCategory, setNewItemCategory] = useState('Makanan'); 
   const [editingItem, setEditingItem] = useState(null); 
 
-  // State User Management
+  // User Management
   const [newUserNrp, setNewUserNrp] = useState('');
   const [newUserPass, setNewUserPass] = useState('');
   const [newUserName, setNewUserName] = useState('');
+  const [newUserAccess, setNewUserAccess] = useState('all'); 
+  const [editingUser, setEditingUser] = useState(null); 
   
-  // Logic Role & Authority
+  // Role
   const [accountType, setAccountType] = useState('user'); 
   const [newUserRole, setNewUserRole] = useState('user'); 
   const [assignedYard, setAssignedYard] = useState(YARDS[0]); 
@@ -338,17 +351,12 @@ const AdminDashboard = ({ user, area, logout }) => {
     });
   }, [area]);
 
-  // --- PERBAIKAN UTAMA: Query Klaim Tanpa OrderBy ---
   useEffect(() => {
-      // PERBAIKAN: Hapus orderBy('timestamp', 'desc') dari query Firestore
-      // Ini mengatasi masalah data tidak muncul karena index belum dibuat.
-      // Kita sorting manual di client-side (Javascript).
       const q = query(collection(db, 'claims'), where('area', '==', area));
       
       return onSnapshot(q, (snap) => {
           const fetchedData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
           
-          // Sort Client Side (Terbaru diatas)
           fetchedData.sort((a, b) => {
               const timeA = a.timestamp?.seconds || 0;
               const timeB = b.timestamp?.seconds || 0;
@@ -379,7 +387,8 @@ const AdminDashboard = ({ user, area, logout }) => {
             await updateDoc(doc(db, 'inventory', editingItem.id), { 
                 name: newItemName, 
                 warehouseStock: parseInt(newItemStock),
-                day: newItemDay
+                day: newItemDay,
+                category: newItemCategory 
             });
             setEditingItem(null);
         } else {
@@ -388,10 +397,11 @@ const AdminDashboard = ({ user, area, logout }) => {
                 warehouseStock: parseInt(newItemStock), 
                 area: area, 
                 day: newItemDay,
+                category: newItemCategory, 
                 createdAt: serverTimestamp() 
             });
         }
-        setNewItemName(''); setNewItemStock(''); setNewItemDay('Daily'); showSuccess("Stok Disimpan");
+        setNewItemName(''); setNewItemStock(''); setNewItemDay('Daily'); setNewItemCategory('Makanan'); showSuccess("Stok Disimpan");
     } catch(err) { alert("Error: " + err.message); }
   };
 
@@ -400,30 +410,65 @@ const AdminDashboard = ({ user, area, logout }) => {
       setNewItemName(item.name);
       setNewItemStock(item.warehouseStock);
       setNewItemDay(item.day || 'Daily');
+      setNewItemCategory(item.category || 'Minuman'); 
   }
 
-  const handleAddUser = async (e) => {
+  // Handle User (Add & Edit)
+  const handleSaveUser = async (e) => {
       e.preventDefault();
       try {
           const userData = {
             nrp: newUserNrp, 
             password: newUserPass, 
             displayName: newUserName, 
-            role: newUserRole, 
-            createdAt: serverTimestamp() 
+            role: newUserRole,
+            accessRights: newUserAccess, 
           };
+          
           if (newUserRole === 'admin_area') {
              userData.assignedArea = assignedYard;
           }
-          await addDoc(collection(db, 'users'), userData);
-          setNewUserNrp(''); setNewUserPass(''); setNewUserName(''); 
+
+          if (editingUser) {
+             const docRef = doc(db, 'users', editingUser.id);
+             const finalData = newUserPass ? {...userData} : {
+                 nrp: newUserNrp, displayName: newUserName, role: newUserRole, accessRights: newUserAccess
+             };
+             if (newUserRole === 'admin_area') finalData.assignedArea = assignedYard;
+             
+             await updateDoc(docRef, finalData);
+             setEditingUser(null);
+             showSuccess("User Diupdate");
+          } else {
+             userData.createdAt = serverTimestamp();
+             await addDoc(collection(db, 'users'), userData);
+             showSuccess("User Ditambahkan");
+          }
+          
+          setNewUserNrp(''); setNewUserPass(''); setNewUserName(''); setNewUserAccess('all');
           setAccountType('user'); 
-          showSuccess("User Ditambahkan");
-      } catch (e) { alert("Gagal tambah user"); }
+      } catch (e) { alert("Gagal simpan user: " + e.message); }
+  };
+
+  const handleEditUser = (u) => {
+      setEditingUser(u);
+      setNewUserNrp(u.nrp);
+      setNewUserName(u.displayName);
+      setNewUserRole(u.role);
+      setNewUserAccess(u.accessRights || 'all');
+      if (u.assignedArea) setAssignedYard(u.assignedArea);
+      setAccountType(u.role === 'user' ? 'user' : 'admin');
+      setNewUserPass(''); 
+  };
+
+  const handleDeleteUser = async (id) => {
+      if (confirm("Yakin hapus user ini?")) {
+          await deleteDoc(doc(db, 'users', id));
+          showSuccess("User Dihapus");
+      }
   };
 
   const statsData = useMemo(() => {
-      // Filter dulu data berdasarkan tanggal yang dipilih agar statistik akurat
       const filteredForStats = allClaims.filter(item => {
         let matchDate = true;
         if (startDate) matchDate = matchDate && item.date >= startDate;
@@ -432,19 +477,19 @@ const AdminDashboard = ({ user, area, logout }) => {
       });
 
       const totalClaims = filteredForStats.length;
-      const drinkCounts = {};
+      const itemCounts = {};
       filteredForStats.forEach(claim => {
-          const drink = claim.drinkName;
-          drinkCounts[drink] = (drinkCounts[drink] || 0) + 1;
+          const name = claim.itemName || claim.drinkName; 
+          itemCounts[name] = (itemCounts[name] || 0) + 1;
       });
-      const chartData = Object.keys(drinkCounts).map(drink => ({
-          name: drink,
-          count: drinkCounts[drink],
-          percent: totalClaims > 0 ? Math.round((drinkCounts[drink] / totalClaims) * 100) : 0
+      const chartData = Object.keys(itemCounts).map(name => ({
+          name: name,
+          count: itemCounts[name],
+          percent: totalClaims > 0 ? Math.round((itemCounts[name] / totalClaims) * 100) : 0
       })).sort((a,b) => b.count - a.count);
 
       return { totalClaims, chartData };
-  }, [allClaims, startDate, endDate]); // Recalculate if dates change
+  }, [allClaims, startDate, endDate]); 
 
   const renderHistory = () => {
       const filteredClaims = allClaims.filter(item => {
@@ -460,8 +505,6 @@ const AdminDashboard = ({ user, area, logout }) => {
             <h3 className="font-bold text-slate-700 text-xl mb-4 flex items-center gap-2"><History size={20}/> Riwayat Klaim</h3>
             
             <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-4 space-y-3">
-                
-                {/* FILTER SHORTCUTS */}
                 <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
                     <button onClick={() => setFilterType('today')} className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${filterType === 'today' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>Hari Ini</button>
                     <button onClick={() => setFilterType('week')} className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${filterType === 'week' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>7 Hari</button>
@@ -500,10 +543,13 @@ const AdminDashboard = ({ user, area, logout }) => {
                     <div key={claim.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center animate-in fade-in slide-in-from-bottom-2">
                         <div>
                             <h4 className="font-bold text-slate-700 text-sm">{claim.userName}</h4>
-                            <p className="text-xs text-gray-400 mb-1">{claim.drinkName}</p>
+                            <p className="text-xs text-gray-400 mb-1">{claim.itemName || claim.drinkName}</p>
                             <span className="text-[10px] text-gray-400">{formatDateTime(claim.timestamp)}</span>
                         </div>
-                        <span className="text-[10px] px-2 py-1 rounded font-bold bg-green-100 text-green-600 flex items-center gap-1"><CheckCircle size={10}/> Sukses</span>
+                        <div className="text-right">
+                           <span className="text-[10px] px-2 py-1 rounded font-bold bg-green-100 text-green-600 flex items-center gap-1 mb-1"><CheckCircle size={10}/> Sukses</span>
+                           <span className="text-[9px] font-bold text-slate-400 uppercase">{claim.category || 'Minuman'}</span>
+                        </div>
                     </div>
                 ))}
             </div>
@@ -528,13 +574,13 @@ const AdminDashboard = ({ user, area, logout }) => {
                   <p className="text-[10px] opacity-80 mt-2">Periode Terpilih</p>
               </div>
               <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                  <p className="text-gray-400 text-xs font-bold mb-1">Minuman Favorit</p>
+                  <p className="text-gray-400 text-xs font-bold mb-1">Menu Favorit</p>
                   <h2 className="text-xl font-bold text-slate-800 line-clamp-2">{statsData.chartData[0]?.name || '-'}</h2>
                   <p className="text-[10px] text-green-600 font-bold mt-2 flex items-center gap-1"><TrendingUp size={12}/> {statsData.chartData[0]?.count || 0} Klaim</p>
               </div>
           </div>
           <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-              <h4 className="font-bold text-slate-700 mb-4 text-sm">Distribusi Minuman</h4>
+              <h4 className="font-bold text-slate-700 mb-4 text-sm">Distribusi Menu</h4>
               <div className="space-y-4">
                   {statsData.chartData.map((data, index) => (
                       <div key={index}>
@@ -554,22 +600,32 @@ const AdminDashboard = ({ user, area, logout }) => {
             <h3 className="font-bold text-slate-700 text-lg mb-3 flex items-center gap-2"><Package size={18}/> Kelola Stok</h3>
             <div className="bg-white p-4 rounded-2xl shadow-sm border border-indigo-100 mb-4">
                 <form onSubmit={handleSaveInventory} className="space-y-2">
-                    <input required placeholder="Nama Minuman" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-gray-900" value={newItemName} onChange={e=>setNewItemName(e.target.value)} />
-                    <div className="flex gap-2">
-                        <input required type="number" placeholder="Jumlah" className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-gray-900" value={newItemStock} onChange={e=>setNewItemStock(e.target.value)} />
-                        <select className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-gray-900" value={newItemDay} onChange={e=>setNewItemDay(e.target.value)}>
+                    <input required placeholder="Nama Menu" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-gray-900" value={newItemName} onChange={e=>setNewItemName(e.target.value)} />
+                    
+                    <div className="grid grid-cols-2 gap-2">
+                         <select className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-gray-900" value={newItemCategory} onChange={e=>setNewItemCategory(e.target.value)}>
+                            {CATEGORY_OPTION.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        <select className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-gray-900" value={newItemDay} onChange={e=>setNewItemDay(e.target.value)}>
                             {DAYS_OPTION.map(d => <option key={d} value={d}>{d}</option>)}
                         </select>
                     </div>
-                    <button type="submit" className={`px-4 py-2 rounded-lg text-white font-bold text-sm w-full ${editingItem ? 'bg-orange-500' : 'bg-indigo-600'}`}>{editingItem ? 'Update' : 'Simpan'}</button>
-                    {editingItem && <button type="button" onClick={()=>{setEditingItem(null); setNewItemName(''); setNewItemStock(''); setNewItemDay('Daily');}} className="w-full bg-gray-100 text-gray-500 py-2 rounded-lg text-xs font-bold">Batal Edit</button>}
+
+                    <div className="flex gap-2">
+                        <input required type="number" placeholder="Jumlah Stok" className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-gray-900" value={newItemStock} onChange={e=>setNewItemStock(e.target.value)} />
+                    </div>
+
+                    <button type="submit" className={`px-4 py-2 rounded-lg text-white font-bold text-sm w-full ${editingItem ? 'bg-orange-500' : 'bg-indigo-600'}`}>{editingItem ? 'Update Stok' : 'Simpan Stok'}</button>
+                    {editingItem && <button type="button" onClick={()=>{setEditingItem(null); setNewItemName(''); setNewItemStock(''); setNewItemDay('Daily'); setNewItemCategory('Makanan');}} className="w-full bg-gray-100 text-gray-500 py-2 rounded-lg text-xs font-bold">Batal Edit</button>}
                 </form>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-60 overflow-y-auto">
                 {inventory.map(item => (
                     <div key={item.id} className="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center">
                         <div className="flex items-center gap-3">
-                            <div className="bg-indigo-50 p-2 rounded-lg"><Coffee size={16} className="text-indigo-500"/></div>
+                            <div className={`${item.category === 'Makanan' ? 'bg-orange-50 text-orange-500' : 'bg-blue-50 text-blue-500'} p-2 rounded-lg`}>
+                                {item.category === 'Makanan' ? <Utensils size={16}/> : <CupSoda size={16}/>}
+                            </div>
                             <div>
                                 <div className="font-bold text-slate-700 text-sm">{item.name}</div>
                                 <div className="text-[10px] text-gray-400 flex items-center gap-2">
@@ -591,12 +647,12 @@ const AdminDashboard = ({ user, area, logout }) => {
               <div>
                  <h3 className="font-bold text-slate-700 text-lg mb-3 flex items-center gap-2"><Users size={18}/> Kelola User</h3>
                  <div className="bg-white p-4 rounded-2xl shadow-sm border border-purple-100 mb-4">
-                    <form onSubmit={handleAddUser} className="space-y-3">
+                    <form onSubmit={handleSaveUser} className="space-y-3">
                         <input required placeholder="Nama Lengkap" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-gray-900" value={newUserName} onChange={e=>setNewUserName(e.target.value)} />
                         
                         <div className="flex gap-2">
                             <input required type="text" placeholder="NRP" className="w-1/2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-gray-900" value={newUserNrp} onChange={e=>setNewUserNrp(e.target.value)} />
-                            <input required type="text" placeholder="Password" className="w-1/2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-gray-900" value={newUserPass} onChange={e=>setNewUserPass(e.target.value)} />
+                            <input type={editingUser ? "text" : "text"} placeholder={editingUser ? "Isi utk ubah pass" : "Password"} className="w-1/2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-gray-900" value={newUserPass} onChange={e=>setNewUserPass(e.target.value)} required={!editingUser} />
                         </div>
                         
                         <div className="grid grid-cols-2 gap-2">
@@ -611,6 +667,21 @@ const AdminDashboard = ({ user, area, logout }) => {
                                     <option value="admin">Administrator</option>
                                 </select>
                             </div>
+                            
+                            {/* PILIHAN HAK AKSES MAKAN/MINUM */}
+                            {accountType === 'user' && (
+                                <div className="animate-in fade-in zoom-in-95">
+                                    <label className="text-[10px] font-bold text-gray-400 ml-1">Hak Akses</label>
+                                    <select 
+                                        className="w-full bg-blue-50 border border-blue-200 rounded-lg px-2 py-2 text-xs font-bold text-blue-700"
+                                        value={newUserAccess} 
+                                        onChange={(e) => setNewUserAccess(e.target.value)}
+                                    >
+                                        <option value="all">Makan & Minum</option>
+                                        <option value="food_only">Makan Saja</option>
+                                    </select>
+                                </div>
+                            )}
 
                             {accountType === 'admin' && (
                                 <div className="animate-in fade-in zoom-in-95">
@@ -645,7 +716,10 @@ const AdminDashboard = ({ user, area, logout }) => {
                              </div>
                         )}
 
-                        <button type="submit" className="w-full bg-purple-600 text-white py-2 rounded-lg font-bold text-sm mt-2 hover:bg-purple-700 transition-colors">Tambah User</button>
+                        <button type="submit" className={`w-full text-white py-2 rounded-lg font-bold text-sm mt-2 transition-colors ${editingUser ? 'bg-orange-500 hover:bg-orange-600' : 'bg-purple-600 hover:bg-purple-700'}`}>
+                            {editingUser ? 'Update User' : 'Tambah User'}
+                        </button>
+                        {editingUser && <button type="button" onClick={() => {setEditingUser(null); setNewUserNrp(''); setNewUserPass(''); setNewUserName(''); setNewUserAccess('all');}} className="w-full bg-gray-100 text-gray-500 py-2 rounded-lg text-xs font-bold mt-2">Batal Edit</button>}
                     </form>
                  </div>
                  
@@ -656,15 +730,21 @@ const AdminDashboard = ({ user, area, logout }) => {
                                   <div className="font-bold text-sm text-slate-700">{u.displayName}</div>
                                   <div className="text-[10px] text-gray-400">{u.nrp}</div>
                               </div>
-                              <div className="text-right">
-                                  <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase block mb-1 ${u.role === 'user' ? 'bg-gray-100 text-gray-600' : 'bg-purple-100 text-purple-600'}`}>
-                                    {u.role === 'general_admin' ? 'General' : u.role === 'admin_area' ? 'Admin Area' : 'User'}
-                                  </span>
-                                  {u.role === 'admin_area' && u.assignedArea && (
-                                      <span className="text-[9px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-bold">
-                                          {u.assignedArea}
+                              <div className="text-right flex items-center gap-2">
+                                  <div className="text-right">
+                                      <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase block mb-1 ${u.role === 'user' ? 'bg-gray-100 text-gray-600' : 'bg-purple-100 text-purple-600'}`}>
+                                        {u.role === 'general_admin' ? 'General' : u.role === 'admin_area' ? 'Admin Area' : 'User'}
                                       </span>
-                                  )}
+                                      {u.role === 'user' && (
+                                         <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${u.accessRights === 'food_only' ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
+                                            {u.accessRights === 'food_only' ? 'Makan Saja' : 'Full Akses'}
+                                         </span>
+                                      )}
+                                  </div>
+                                  <div className="flex flex-col gap-1">
+                                      <button onClick={() => handleEditUser(u)} className="p-1.5 bg-orange-50 text-orange-500 rounded"><Edit size={12}/></button>
+                                      <button onClick={() => handleDeleteUser(u.id)} className="p-1.5 bg-red-50 text-red-500 rounded"><Trash2 size={12}/></button>
+                                  </div>
                               </div>
                           </div>
                       ))}
@@ -724,17 +804,36 @@ const AdminDashboard = ({ user, area, logout }) => {
   );
 };
 
-// --- 7. Employee Dashboard ---
+// --- 7. Employee Dashboard (User) ---
 const EmployeeDashboard = ({ user, area, logout }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [menuItems, setMenuItems] = useState([]);
-  const [todaysClaim, setTodaysClaim] = useState(null);
-  const [showCoupon, setShowCoupon] = useState(false);
+  
+  // State Claim Hari Ini (Array karena bisa 2 klaim)
+  const [todaysClaims, setTodaysClaims] = useState([]); 
+  const [showCoupon, setShowCoupon] = useState(null); // Data kupon spesifik
   const [historyList, setHistoryList] = useState([]);
   const [isClaiming, setIsClaiming] = useState(false); 
   
+  // State Tab Makanan/Minuman di Dashboard
+  const [menuTab, setMenuTab] = useState('Makanan'); 
+  const userAccess = user.accessRights || 'all'; // Default all (Makan & Minum)
+
+  // Filter History User
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [filterType, setFilterType] = useState('all'); // Filter preset
+
+  // Logika Waktu
+  const [canClaimTime, setCanClaimTime] = useState(isClaimWindowOpen());
+
+  useEffect(() => {
+      // Cek waktu setiap menit
+      const interval = setInterval(() => {
+          setCanClaimTime(isClaimWindowOpen());
+      }, 60000);
+      return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const q = query(collection(db, 'inventory'), where('area', '==', area));
@@ -750,10 +849,11 @@ const EmployeeDashboard = ({ user, area, logout }) => {
   }, [area]);
 
   useEffect(() => {
+    // Ambil semua klaim hari ini oleh user ini
     const q = query(collection(db, 'claims'), where('userId', '==', user.uid), where('date', '==', getTodayString()));
     return onSnapshot(q, (snap) => {
-      if (!snap.empty) setTodaysClaim({ id: snap.docs[0].id, ...snap.docs[0].data() });
-      else setTodaysClaim(null);
+      const claims = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setTodaysClaims(claims);
     });
   }, [user]);
 
@@ -764,11 +864,16 @@ const EmployeeDashboard = ({ user, area, logout }) => {
       }
   }, [activeTab, user]);
 
+  // Status Klaim Spesifik Kategori
+  const hasClaimedFood = todaysClaims.some(c => c.category === 'Makanan');
+  const hasClaimedDrink = todaysClaims.some(c => c.category === 'Minuman' || !c.category); // Backward compat utk data lama
+
   const userStats = useMemo(() => {
       const total = historyList.length;
       const counts = {};
       historyList.forEach(item => {
-          counts[item.drinkName] = (counts[item.drinkName] || 0) + 1;
+          const name = item.itemName || item.drinkName;
+          counts[name] = (counts[name] || 0) + 1;
       });
       const breakdown = Object.keys(counts).map(name => ({
           name,
@@ -780,12 +885,22 @@ const EmployeeDashboard = ({ user, area, logout }) => {
   }, [historyList]);
 
   const handleOrder = async (item) => {
-    if (todaysClaim) return;
+    // Validasi Waktu
+    if (!isClaimWindowOpen()) {
+        alert("Klaim hanya bisa dilakukan pukul 07:30 - 19:00");
+        return;
+    }
+
+    const itemCategory = item.category || 'Minuman';
+    const alreadyClaimed = itemCategory === 'Makanan' ? hasClaimedFood : hasClaimedDrink;
+
+    if (alreadyClaimed) return;
     if (isClaiming) return;
     if (item.warehouseStock <= 0) { alert("Stok Habis!"); return; }
     
     setIsClaiming(true);
     try {
+        let newClaimData = null;
         await runTransaction(db, async (t) => {
               const invRef = doc(db, 'inventory', item.id);
               const invDoc = await t.get(invRef);
@@ -795,16 +910,19 @@ const EmployeeDashboard = ({ user, area, logout }) => {
               if (currentStock <= 0) throw new Error("Stok habis saat diproses!");
 
               const newClaimRef = doc(collection(db, 'claims'));
-              t.set(newClaimRef, {
+              newClaimData = {
                 userId: user.uid, userName: user.displayName, userNrp: user.nrp || '-',
-                inventoryId: item.id, drinkName: item.name, date: getTodayString(),
+                inventoryId: item.id, itemName: item.name, date: getTodayString(),
+                category: itemCategory, // Simpan kategori
                 status: 'completed', location: area, area: area, timestamp: serverTimestamp()
-              });
+              };
+              t.set(newClaimRef, newClaimData);
 
               t.update(invRef, { warehouseStock: currentStock - 1 });
         });
         
-        setShowCoupon(true);
+        // Buat objek dummy timestamp utk preview kupon segera
+        setShowCoupon({ ...newClaimData, timestamp: new Date() });
     } catch (e) { 
         alert("Gagal klaim: " + e.message); 
     } finally {
@@ -812,35 +930,90 @@ const EmployeeDashboard = ({ user, area, logout }) => {
     }
   };
 
-  const renderDashboard = () => (
+  const renderDashboard = () => {
+    const displayedItems = menuItems.filter(item => {
+        const cat = item.category || 'Minuman';
+        return cat === menuTab;
+    });
+
+    const isCurrentCategoryClaimed = menuTab === 'Makanan' ? hasClaimedFood : hasClaimedDrink;
+
+    return (
     <div className="p-6 pb-28 w-full">
-         <div className={`p-5 rounded-3xl text-white shadow-xl mb-6 relative overflow-hidden ${todaysClaim ? 'bg-slate-800' : 'bg-gradient-to-r from-blue-600 to-indigo-600'}`}>
+         <div className={`p-5 rounded-3xl text-white shadow-xl mb-6 relative overflow-hidden bg-gradient-to-r from-blue-600 to-indigo-600`}>
              <div className="relative z-10">
                  <p className="text-xs opacity-80 mb-1">Status Hari Ini</p>
-                 <h3 className="text-2xl font-bold flex items-center gap-2">
-                     {todaysClaim ? 'Berhasil Klaim' : 'Belum Klaim'}
-                     {todaysClaim && <CheckCircle size={20} className="text-green-400"/>}
-                 </h3>
-                 {todaysClaim && (
-                     <button onClick={()=>setShowCoupon(true)} className="mt-3 bg-white/20 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-white/30 transition-all">
-                         <Ticket size={14}/> Lihat E-Tiket
-                     </button>
+                 <div className="flex gap-4 mt-2">
+                     <div className={`flex-1 p-3 rounded-xl ${hasClaimedFood ? 'bg-green-500/30 border border-green-400/50' : 'bg-white/10 border border-white/20'}`}>
+                        <div className="flex items-center gap-2 mb-1">
+                            <Utensils size={16}/> <span className="text-xs font-bold">Makan</span>
+                        </div>
+                        {hasClaimedFood ? <span className="text-[10px] flex items-center gap-1 font-bold text-green-200"><CheckCircle size={10}/> Diklaim</span> : <span className="text-[10px] opacity-70">Belum</span>}
+                     </div>
+                     
+                     {userAccess !== 'food_only' && (
+                         <div className={`flex-1 p-3 rounded-xl ${hasClaimedDrink ? 'bg-green-500/30 border border-green-400/50' : 'bg-white/10 border border-white/20'}`}>
+                            <div className="flex items-center gap-2 mb-1">
+                                <CupSoda size={16}/> <span className="text-xs font-bold">Minum</span>
+                            </div>
+                            {hasClaimedDrink ? <span className="text-[10px] flex items-center gap-1 font-bold text-green-200"><CheckCircle size={10}/> Diklaim</span> : <span className="text-[10px] opacity-70">Belum</span>}
+                         </div>
+                     )}
+                 </div>
+                 
+                 {todaysClaims.length > 0 && (
+                     <div className="mt-4 flex gap-2">
+                        {todaysClaims.map(c => (
+                            <button key={c.id} onClick={()=>setShowCoupon(c)} className="bg-white/20 px-3 py-2 rounded-lg text-[10px] font-bold flex items-center gap-1 hover:bg-white/30 transition-all">
+                                <Ticket size={12}/> Tiket {c.category === 'Makanan' ? 'Makan' : 'Minum'}
+                            </button>
+                        ))}
+                     </div>
                  )}
              </div>
-             <ClipboardList className="absolute right-4 bottom-4 text-white/10" size={60} />
+         </div>
+
+         {!canClaimTime && (
+             <div className="bg-red-50 border border-red-200 p-4 rounded-xl mb-6 flex items-center gap-3">
+                 <AlertCircle className="text-red-500" size={24}/>
+                 <div>
+                     <h4 className="font-bold text-red-700 text-sm">Klaim Ditutup</h4>
+                     <p className="text-xs text-red-500">Klaim hanya tersedia jam 07:30 - 19:00.</p>
+                 </div>
+             </div>
+         )}
+
+         {/* TAB NAVIGATOR */}
+         <div className="flex p-1 bg-slate-200 rounded-xl mb-6">
+             <button 
+                onClick={() => setMenuTab('Makanan')}
+                className={`flex-1 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${menuTab === 'Makanan' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}
+             >
+                <Utensils size={16}/> Makanan
+             </button>
+             {userAccess !== 'food_only' && (
+                 <button 
+                    onClick={() => setMenuTab('Minuman')}
+                    className={`flex-1 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${menuTab === 'Minuman' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}
+                 >
+                    <CupSoda size={16}/> Minuman
+                 </button>
+             )}
          </div>
 
          <div className="flex justify-between items-center mb-4">
-            <h3 className="font-bold text-slate-700">Menu Tersedia</h3>
+            <h3 className="font-bold text-slate-700">Daftar {menuTab}</h3>
             <span className="text-[10px] bg-slate-100 px-2 py-1 rounded text-slate-500 font-bold flex items-center gap-1"><CalendarDays size={12}/> {getDayName()}</span>
          </div>
          
          <div className="space-y-3">
-             {menuItems.length === 0 && <p className="text-gray-400 text-center text-sm py-10">Tidak ada menu untuk hari ini.</p>}
-             {menuItems.map(item => (
+             {displayedItems.length === 0 && <p className="text-gray-400 text-center text-sm py-10">Tidak ada menu {menuTab.toLowerCase()} hari ini.</p>}
+             {displayedItems.map(item => (
                  <div key={item.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
                      <div className="flex items-center gap-4">
-                         <div className="w-12 h-12 bg-blue-50 text-blue-500 rounded-xl flex items-center justify-center flex-shrink-0"><Coffee size={24}/></div>
+                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${item.category === 'Makanan' ? 'bg-orange-50 text-orange-500' : 'bg-blue-50 text-blue-500'}`}>
+                            {item.category === 'Makanan' ? <Utensils size={24}/> : <CupSoda size={24}/>}
+                         </div>
                          <div>
                              <div className="font-bold text-slate-800">{item.name}</div>
                              <div className={`text-xs font-bold px-2 py-0.5 rounded-md w-fit mt-1 flex items-center gap-1 ${item.warehouseStock > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
@@ -849,24 +1022,32 @@ const EmployeeDashboard = ({ user, area, logout }) => {
                          </div>
                      </div>
                      <button 
-                       disabled={todaysClaim || item.warehouseStock <= 0 || isClaiming} 
+                       disabled={!canClaimTime || isCurrentCategoryClaimed || item.warehouseStock <= 0 || isClaiming} 
                        onClick={()=>handleOrder(item)}
-                       className={`px-4 py-2 rounded-xl font-bold text-xs shadow-sm transition-all active:scale-95 flex-shrink-0 flex items-center justify-center ${todaysClaim || item.warehouseStock <= 0 ? 'bg-gray-100 text-gray-400' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
-                         {isClaiming ? <Loader2 className="animate-spin" size={16}/> : (todaysClaim ? 'Selesai' : item.warehouseStock <= 0 ? 'Habis' : 'Klaim')}
+                       className={`px-4 py-2 rounded-xl font-bold text-xs shadow-sm transition-all active:scale-95 flex-shrink-0 flex items-center justify-center ${!canClaimTime || isCurrentCategoryClaimed || item.warehouseStock <= 0 ? 'bg-gray-100 text-gray-400' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
+                       {isClaiming ? <Loader2 className="animate-spin" size={16}/> : (!canClaimTime ? 'Tutup' : isCurrentCategoryClaimed ? 'Selesai' : item.warehouseStock <= 0 ? 'Habis' : 'Klaim')}
                      </button>
                  </div>
              ))}
          </div>
     </div>
-  );
+  )};
 
   const renderHistory = () => {
-      const filteredHistory = historyList.filter(item => {
-          let matchDate = true;
-          if (startDate) matchDate = matchDate && item.date >= startDate;
-          if (endDate) matchDate = matchDate && item.date <= endDate;
-          return matchDate;
-      });
+      // Logic Filter Hari Ini dll
+      const todayStr = getTodayString();
+      let filteredHistory = historyList;
+
+      if (filterType === 'today') {
+          filteredHistory = historyList.filter(item => item.date === todayStr);
+      } else if (filterType === 'custom') {
+           filteredHistory = historyList.filter(item => {
+              let matchDate = true;
+              if (startDate) matchDate = matchDate && item.date >= startDate;
+              if (endDate) matchDate = matchDate && item.date <= endDate;
+              return matchDate;
+           });
+      }
 
       return (
         <div className="p-6 pb-28 w-full">
@@ -874,11 +1055,11 @@ const EmployeeDashboard = ({ user, area, logout }) => {
             <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 mb-6">
                 <div className="flex items-center gap-4 mb-4 border-b border-slate-50 pb-4">
                     <div className="bg-blue-50 p-3 rounded-full text-blue-600">
-                        <Coffee size={24} />
+                        <CupSoda size={24} />
                     </div>
                     <div>
-                        <p className="text-xs text-gray-400 font-bold uppercase">Total Minuman</p>
-                        <h2 className="text-2xl font-black text-slate-800">{userStats.total} <span className="text-xs font-normal text-gray-400">Gelas</span></h2>
+                        <p className="text-xs text-gray-400 font-bold uppercase">Total Klaim</p>
+                        <h2 className="text-2xl font-black text-slate-800">{userStats.total} <span className="text-xs font-normal text-gray-400">Item</span></h2>
                     </div>
                 </div>
                 <div className="space-y-3">
@@ -900,37 +1081,43 @@ const EmployeeDashboard = ({ user, area, logout }) => {
             <h4 className="font-bold text-slate-700 mb-3 text-sm">Daftar Riwayat</h4>
             
             <div className="bg-white p-3 rounded-2xl border border-slate-100 mb-4 shadow-sm">
-                 <div className="grid grid-cols-2 gap-2 mb-2">
+                 <div className="flex gap-2 mb-2">
+                     <button onClick={() => setFilterType('today')} className={`flex-1 py-1.5 rounded-lg text-xs font-bold ${filterType === 'today' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>Hari Ini</button>
+                     <button onClick={() => setFilterType('all')} className={`flex-1 py-1.5 rounded-lg text-xs font-bold ${filterType === 'all' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>Semua</button>
+                 </div>
+                 
+                 <div onClick={() => setFilterType('custom')} className="grid grid-cols-2 gap-2 mb-2">
                     <div>
                         <label className="text-[10px] font-bold text-gray-400 ml-1">Dari</label>
-                        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} 
+                        <input type="date" value={startDate} onChange={e => {setStartDate(e.target.value); setFilterType('custom');}} 
                             className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-2 text-xs text-gray-700 focus:outline-none"/>
                     </div>
                     <div>
                         <label className="text-[10px] font-bold text-gray-400 ml-1">Sampai</label>
-                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} 
+                        <input type="date" value={endDate} onChange={e => {setEndDate(e.target.value); setFilterType('custom');}} 
                             className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-2 text-xs text-gray-700 focus:outline-none"/>
                     </div>
-                </div>
-                <button 
+                 </div>
+                 <button 
                     onClick={() => exportToCSV(filteredHistory, `Riwayat_Saya_${user.nrp}`)}
                     className="w-full bg-slate-800 text-white py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-slate-900 active:scale-95 transition-all">
                     <Download size={14}/> Download Riwayat
-                </button>
+                 </button>
             </div>
 
             <div className="space-y-3">
-                {filteredHistory.length === 0 && <p className="text-gray-400 text-center mt-4 text-xs">Belum ada riwayat di tanggal ini.</p>}
+                {filteredHistory.length === 0 && <p className="text-gray-400 text-center mt-4 text-xs">Belum ada riwayat sesuai filter.</p>}
                 {filteredHistory.map(item => (
-                    <div key={item.id} onClick={() => {if(item.date === getTodayString()) setShowCoupon(true)}} className={`bg-white p-4 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden ${item.date === getTodayString() ? 'cursor-pointer ring-1 ring-blue-400' : ''}`}>
+                    <div key={item.id} onClick={() => {if(item.date === getTodayString()) setShowCoupon(item)}} className={`bg-white p-4 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden ${item.date === getTodayString() ? 'cursor-pointer ring-1 ring-blue-400' : ''}`}>
                         <div className="flex justify-between items-start mb-2">
-                            <span className="font-bold text-slate-800">{item.drinkName}</span>
+                            <span className="font-bold text-slate-800">{item.itemName || item.drinkName}</span>
                             <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-1 rounded-full">{item.date}</span>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 justify-between">
                              <div className="text-xs font-bold px-2 py-1 rounded flex items-center gap-1 bg-green-100 text-green-600">
                                 <CheckCircle size={12}/> Berhasil
                              </div>
+                             <span className="text-[10px] text-gray-400 uppercase font-bold">{item.category || 'Minuman'}</span>
                         </div>
                     </div>
                 ))}
@@ -945,18 +1132,23 @@ const EmployeeDashboard = ({ user, area, logout }) => {
               <div className="w-20 h-20 bg-slate-100 rounded-full mx-auto mb-4 flex items-center justify-center text-slate-400"><User size={40} /></div>
               <h2 className="text-xl font-bold text-slate-800">{user.displayName}</h2>
               <p className="text-slate-500 text-sm mb-4">{user.nrp || 'No NRP'}</p>
-              <div className="bg-blue-50 text-blue-700 px-4 py-2 rounded-xl text-sm font-bold inline-flex items-center gap-2"><MapPin size={14} /> {area}</div>
+              
+              <div className="flex justify-center gap-2">
+                  <div className="bg-blue-50 text-blue-700 px-4 py-2 rounded-xl text-sm font-bold inline-flex items-center gap-2"><MapPin size={14} /> {area}</div>
+                  <div className={`px-4 py-2 rounded-xl text-sm font-bold inline-flex items-center gap-2 ${userAccess === 'food_only' ? 'bg-orange-50 text-orange-600' : 'bg-purple-50 text-purple-600'}`}>
+                      {userAccess === 'food_only' ? <Utensils size={14}/> : <CheckCircle size={14}/>} {userAccess === 'food_only' ? 'Makan Saja' : 'Full Access'}
+                  </div>
+              </div>
           </div>
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
               <button onClick={logout} className="w-full p-4 text-left flex items-center justify-between hover:bg-slate-50 text-red-500 font-bold">
                   <span className="flex items-center gap-3"><LogOut size={18}/> Keluar Akun</span><ArrowRight size={16} className="text-red-300"/>
               </button>
           </div>
-          <p className="text-center text-gray-300 text-xs mt-8">Versi Aplikasi 2.9.4 Fix Index & Filter</p>
+          <p className="text-center text-gray-300 text-xs mt-8">Versi Aplikasi 3.0 Food & Beverage</p>
       </div>
   );
 
-  // Komponen Menu Button untuk Header Baru User
   const MenuButton = ({ id, label, icon: Icon }) => (
       <button 
         onClick={() => setActiveTab(id)} 
@@ -973,9 +1165,8 @@ const EmployeeDashboard = ({ user, area, logout }) => {
 
   return (
     <MobileWrapper className="bg-slate-50">
-      {showCoupon && <CouponModal data={todaysClaim} onClose={() => setShowCoupon(false)} />}
+      {showCoupon && <CouponModal data={showCoupon} onClose={() => setShowCoupon(null)} />}
       
-      {/* HEADER BARU: MENGIKUTI STYLE ADMIN */}
       <div className="bg-indigo-900 pt-6 pb-4 px-6 rounded-b-[2rem] shadow-xl flex flex-col w-full shrink-0 z-20 relative overflow-hidden">
          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-10 -mt-10 blur-2xl"></div>
          <div className="absolute bottom-0 left-0 w-24 h-24 bg-indigo-500/20 rounded-full -ml-5 -mb-5 blur-xl"></div>
@@ -999,7 +1190,6 @@ const EmployeeDashboard = ({ user, area, logout }) => {
          </div>
       </div>
       
-      {/* SCROLLABLE CONTENT */}
       <div className="flex-1 overflow-y-auto w-full overscroll-none scrollbar-hide">
           {activeTab === 'dashboard' && renderDashboard()}
           {activeTab === 'history' && renderHistory()}
