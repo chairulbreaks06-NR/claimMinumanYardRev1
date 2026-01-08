@@ -230,7 +230,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const LOGO_URL = "https://github.com/chairulbreaks06-NR/ClaimSofdrinkYard/blob/main/logo%20e%20claimapp.png?raw=true";
+  const LOGO_URL = "https://github.com/chairulbreaks06-NR/claimMinumanYardRev1/blob/main/NEWLOGO.png?raw=true";
 
   const handleLogin = async (e) => {
     e.preventDefault();
