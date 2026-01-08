@@ -230,7 +230,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const LOGO_URL = "https://github.com/chairulbreaks06-NR/ClaimSofdrinkYard/blob/main/logo%20Claim%20Sofdrink%20(1).png?raw=true";
+  const LOGO_URL = "https://github.com/chairulbreaks06-NR/ClaimSofdrinkYard/blob/main/logo%20e%20claimapp.png?raw=true";
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -256,7 +256,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
         <div className="flex flex-col items-center justify-center mb-8">
             <div className="mb-4 animate-in zoom-in duration-500">
                 <img 
-                    src={https://github.com/chairulbreaks06-NR/ClaimSofdrinkYard/blob/main/logo%20e%20claimapp.png?raw=true} 
+                    src={LOGO_URL} 
                     alt="Logo Claim Softdrink Baru"
                     className="w-auto h-64 object-contain"
                     key={LOGO_URL} 
