@@ -133,17 +133,29 @@ const MobileWrapper = ({ children, className = "" }) => (
   <div className="fixed inset-0 bg-gray-900 flex justify-center items-center font-sans overflow-hidden touch-none print:relative print:bg-white print:block print:h-auto print:overflow-visible">
     <style>{`
       @media print {
-        @page { size: A4; margin: 1cm; }
-        body { background: white; -webkit-print-color-adjust: exact; }
+        @page { size: A4 portrait; margin: 1.5cm; }
+        body { background: white; -webkit-print-color-adjust: exact; font-family: sans-serif; }
         .no-print { display: none !important; }
         .print-only { display: block !important; }
+        
+        /* Reset Container */
         .mobile-container { 
             box-shadow: none !important; 
             max-width: 100% !important; 
+            width: 100% !important;
             height: auto !important;
             overflow: visible !important;
             border-radius: 0 !important;
+            background: white !important;
         }
+
+        /* Table Styling for Print */
+        table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+        th, td { border: 1px solid #000; padding: 6px; text-align: left; }
+        th { background-color: #f0f0f0 !important; font-weight: bold; }
+        
+        /* Remove Scrollbars */
+        ::-webkit-scrollbar { display: none; }
       }
       body { overflow: hidden; position: fixed; width: 100%; height: 100%; }
       * { -webkit-tap-highlight-color: transparent; }
@@ -292,7 +304,7 @@ const AreaSelectionScreen = ({ user, onSelectArea, onLogout }) => {
   );
 };
 
-// --- 6. Admin Dashboard (Updated with Global Stats) ---
+// --- 6. Admin Dashboard (Updated with Global Stats Filters) ---
 const AdminDashboard = ({ user, area, logout }) => {
   const [activeTab, setActiveTab] = useState('history'); 
   const [successMsg, setSuccessMsg] = useState(null);
@@ -311,6 +323,8 @@ const AdminDashboard = ({ user, area, logout }) => {
   // Filter Global
   const [globalStartDate, setGlobalStartDate] = useState(getTodayString());
   const [globalEndDate, setGlobalEndDate] = useState(getTodayString());
+  const [globalAreaFilter, setGlobalAreaFilter] = useState('All'); // NEW: Area Filter
+  const [globalCategoryFilter, setGlobalCategoryFilter] = useState('All'); // NEW: Category Filter
 
   // Stok
   const [newItemName, setNewItemName] = useState('');
@@ -382,17 +396,23 @@ const AdminDashboard = ({ user, area, logout }) => {
       });
   }, [area]);
 
-  // Fetch GLOBAL DATA only if General Admin and Tab is Global
+  // Fetch GLOBAL DATA with Enhanced Filters
   useEffect(() => {
       if (user.role === 'general_admin' && activeTab === 'global') {
-          // Fetch ALL claims without area filter
           const q = query(collection(db, 'claims'));
           return onSnapshot(q, (snap) => {
               const allData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-              // Filter by Date Range in Memory to allow flexible filtering
+              
               const filteredGlobal = allData.filter(item => {
-                  return item.date >= globalStartDate && item.date <= globalEndDate;
+                  const matchDate = item.date >= globalStartDate && item.date <= globalEndDate;
+                  const matchArea = globalAreaFilter === 'All' || item.area === globalAreaFilter;
+                  // Handle backward compatibility where item.category might be undefined (assume Minuman) or saved as string
+                  const itemCat = item.category || 'Minuman'; 
+                  const matchCategory = globalCategoryFilter === 'All' || itemCat === globalCategoryFilter;
+
+                  return matchDate && matchArea && matchCategory;
               });
+
               filteredGlobal.sort((a,b) => {
                    const timeA = a.timestamp?.seconds || 0;
                    const timeB = b.timestamp?.seconds || 0;
@@ -401,7 +421,7 @@ const AdminDashboard = ({ user, area, logout }) => {
               setGlobalClaims(filteredGlobal);
           });
       }
-  }, [user.role, activeTab, globalStartDate, globalEndDate]);
+  }, [user.role, activeTab, globalStartDate, globalEndDate, globalAreaFilter, globalCategoryFilter]);
 
   useEffect(() => {
     if(activeTab === 'manage' && user.role !== 'user') {
@@ -527,7 +547,7 @@ const AdminDashboard = ({ user, area, logout }) => {
       return { totalClaims, chartData };
   }, [allClaims, startDate, endDate]); 
 
-  // --- NEW: Global Stats Data Calculation ---
+  // --- Global Stats Data Calculation ---
   const globalStatsData = useMemo(() => {
       const stats = {
           'Yard Cakung': { food: 0, drink: 0 },
@@ -551,6 +571,10 @@ const AdminDashboard = ({ user, area, logout }) => {
                   stats.totalDrink += 1;
               }
               stats.total += 1;
+          } else {
+             // Handle if area not in initial list (optional)
+              stats.total += 1;
+              if (isFood) stats.totalFood += 1; else stats.totalDrink += 1;
           }
       });
       return stats;
@@ -659,9 +683,8 @@ const AdminDashboard = ({ user, area, logout }) => {
       </div>
   );
 
-  // --- NEW: Global Stats & Report Render Function ---
+  // --- Global Stats & Report Render Function (UPDATED) ---
   const renderGlobalStats = () => {
-    // Fungsi Print untuk Download PDF via Browser
     const handlePrint = () => {
         window.print();
     };
@@ -675,19 +698,61 @@ const AdminDashboard = ({ user, area, logout }) => {
                 </button>
             </div>
 
-            {/* Filter Date */}
+            {/* Print Header */}
+            <div className="hidden print-only mb-6 text-center border-b pb-4">
+                <h2 className="text-2xl font-black text-slate-800 uppercase">Laporan Klaim Makan & Minum</h2>
+                <p className="text-sm text-gray-500">PT Global Service Indonesia</p>
+                <div className="flex justify-center gap-4 mt-2 text-xs font-bold text-gray-600">
+                    <span>Periode: {globalStartDate} s/d {globalEndDate}</span>
+                    <span>Area: {globalAreaFilter}</span>
+                    <span>Kategori: {globalCategoryFilter}</span>
+                </div>
+            </div>
+
+            {/* Filter Date & Options */}
             <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-6 no-print">
-                <h4 className="text-xs font-bold text-gray-500 mb-2">Filter Tanggal Laporan</h4>
+                <h4 className="text-xs font-bold text-gray-500 mb-2">Filter Data Laporan</h4>
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                    <div>
+                        <label className="text-[10px] text-gray-400">Dari Tanggal</label>
+                        <input type="date" value={globalStartDate} onChange={e => setGlobalStartDate(e.target.value)} 
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs text-gray-700 font-bold"/>
+                    </div>
+                    <div>
+                        <label className="text-[10px] text-gray-400">Sampai Tanggal</label>
+                        <input type="date" value={globalEndDate} onChange={e => setGlobalEndDate(e.target.value)} 
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs text-gray-700 font-bold"/>
+                    </div>
+                </div>
                 <div className="grid grid-cols-2 gap-2">
-                    <input type="date" value={globalStartDate} onChange={e => setGlobalStartDate(e.target.value)} 
-                        className="bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs text-gray-700 font-bold"/>
-                    <input type="date" value={globalEndDate} onChange={e => setGlobalEndDate(e.target.value)} 
-                        className="bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs text-gray-700 font-bold"/>
+                    <div>
+                        <label className="text-[10px] text-gray-400">Filter Area</label>
+                        <select 
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs text-gray-700 font-bold"
+                            value={globalAreaFilter}
+                            onChange={(e) => setGlobalAreaFilter(e.target.value)}
+                        >
+                            <option value="All">Semua Area</option>
+                            {YARDS.map(y => <option key={y} value={y}>{y}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="text-[10px] text-gray-400">Filter Kategori</label>
+                        <select 
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs text-gray-700 font-bold"
+                            value={globalCategoryFilter}
+                            onChange={(e) => setGlobalCategoryFilter(e.target.value)}
+                        >
+                            <option value="All">Semua Kategori</option>
+                            <option value="Makanan">Makanan</option>
+                            <option value="Minuman">Minuman</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-3 gap-2 mb-6">
+            <div className="grid grid-cols-3 gap-2 mb-6 break-inside-avoid">
                 <div className="bg-blue-600 p-3 rounded-xl text-white text-center shadow-md">
                     <p className="text-[10px] opacity-80 mb-1">Total</p>
                     <h2 className="text-xl font-black">{globalStatsData.total}</h2>
@@ -715,10 +780,10 @@ const AdminDashboard = ({ user, area, logout }) => {
                         return (
                             <div key={yard} className="flex-1 flex flex-col items-center gap-2 group">
                                 <div className="w-full flex justify-center gap-1 h-full items-end">
-                                    <div className="w-4 bg-orange-400 rounded-t-sm relative group-hover:opacity-80 transition-all" style={{height: `${Math.max(foodH, 5)}%`}}>
+                                    <div className="w-4 bg-orange-400 rounded-t-sm relative group-hover:opacity-80 transition-all print:border print:border-black" style={{height: `${Math.max(foodH, 5)}%`}}>
                                         <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] font-bold text-slate-600">{data.food}</span>
                                     </div>
-                                    <div className="w-4 bg-teal-400 rounded-t-sm relative group-hover:opacity-80 transition-all" style={{height: `${Math.max(drinkH, 5)}%`}}>
+                                    <div className="w-4 bg-teal-400 rounded-t-sm relative group-hover:opacity-80 transition-all print:border print:border-black" style={{height: `${Math.max(drinkH, 5)}%`}}>
                                         <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] font-bold text-slate-600">{data.drink}</span>
                                     </div>
                                 </div>
@@ -728,13 +793,13 @@ const AdminDashboard = ({ user, area, logout }) => {
                     })}
                 </div>
                 <div className="flex justify-center gap-4 mt-4">
-                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-orange-400 rounded-full"></div><span className="text-[10px] text-gray-500">Makan</span></div>
-                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-teal-400 rounded-full"></div><span className="text-[10px] text-gray-500">Minum</span></div>
+                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-orange-400 rounded-full print:border print:border-black"></div><span className="text-[10px] text-gray-500">Makan</span></div>
+                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-teal-400 rounded-full print:border print:border-black"></div><span className="text-[10px] text-gray-500">Minum</span></div>
                 </div>
             </div>
 
             {/* TABLE REPORT */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden break-inside-avoid">
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden break-inside-avoid mobile-container">
                 <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                     <h4 className="font-bold text-slate-700 text-sm flex items-center gap-2"><FileText size={16}/> Laporan Detail</h4>
                     <span className="text-[10px] text-gray-400">{globalClaims.length} Data</span>
@@ -761,7 +826,7 @@ const AdminDashboard = ({ user, area, logout }) => {
                                     <td className="p-3 text-gray-500">{item.area}</td>
                                     <td className="p-3 text-slate-700">{item.itemName}</td>
                                     <td className="p-3 text-right">
-                                        <span className={`px-1.5 py-0.5 rounded font-bold ${item.category === 'Makanan' ? 'bg-orange-100 text-orange-600' : 'bg-teal-100 text-teal-600'}`}>
+                                        <span className={`px-1.5 py-0.5 rounded font-bold ${item.category === 'Makanan' ? 'bg-orange-100 text-orange-600' : 'bg-teal-100 text-teal-600'} print:border print:border-gray-300`}>
                                             {item.category === 'Makanan' ? 'M' : 'D'}
                                         </span>
                                     </td>
@@ -769,7 +834,7 @@ const AdminDashboard = ({ user, area, logout }) => {
                             ))}
                             {globalClaims.length === 0 && (
                                 <tr>
-                                    <td colSpan="5" className="p-6 text-center text-gray-400">Tidak ada data di rentang tanggal ini.</td>
+                                    <td colSpan="5" className="p-6 text-center text-gray-400">Tidak ada data di filter ini.</td>
                                 </tr>
                             )}
                         </tbody>
@@ -778,7 +843,7 @@ const AdminDashboard = ({ user, area, logout }) => {
             </div>
             
             {/* Print Footer */}
-            <div className="hidden print:block mt-8 text-center text-[10px] text-gray-400">
+            <div className="hidden print-only mt-8 text-center text-[10px] text-gray-400">
                 <p>Dicetak pada: {new Date().toLocaleString('id-ID')}</p>
                 <p>Sistem Klaim Makan & Minum PT GSI</p>
             </div>
@@ -1361,7 +1426,7 @@ const EmployeeDashboard = ({ user, area, logout }) => {
     <MobileWrapper className="bg-slate-50">
       {showCoupon && <CouponModal data={showCoupon} onClose={() => setShowCoupon(null)} />}
       
-      <div className="bg-indigo-900 pt-6 pb-4 px-6 rounded-b-[2rem] shadow-xl flex flex-col w-full shrink-0 z-20 relative overflow-hidden">
+      <div className="bg-indigo-900 pt-6 pb-4 px-6 rounded-b-[2rem] shadow-xl flex flex-col w-full shrink-0 z-20 relative overflow-hidden print:hidden">
          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-10 -mt-10 blur-2xl"></div>
          <div className="absolute bottom-0 left-0 w-24 h-24 bg-indigo-500/20 rounded-full -ml-5 -mb-5 blur-xl"></div>
 
