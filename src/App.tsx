@@ -133,79 +133,30 @@ const MobileWrapper = ({ children, className = "" }) => (
   <div className="fixed inset-0 bg-gray-900 flex justify-center items-center font-sans overflow-hidden touch-none print:relative print:bg-white print:block print:h-auto print:overflow-visible">
     <style>{`
       @media print {
-        @page { 
-            size: A4 portrait; 
-            margin: 1cm; 
-        }
+        @page { size: A4 portrait; margin: 1.5cm; }
+        body { background: white; -webkit-print-color-adjust: exact; font-family: sans-serif; }
+        .no-print { display: none !important; }
+        .print-only { display: block !important; }
         
-        body { 
-            background-color: #ffffff !important; 
-            -webkit-print-color-adjust: exact; 
-            font-family: Arial, sans-serif;
-            color: #000000 !important;
-        }
-
-        /* HIDE ELEMENTS */
-        .no-print, button, input, select, .connection-status { 
-            display: none !important; 
-        }
-        
-        /* SHOW ELEMENTS */
-        .print-only { 
-            display: block !important; 
-        }
-        
-        /* RESET CONTAINER STYLES */
-        .mobile-container, .bg-indigo-900, .bg-slate-50, .bg-white { 
+        /* Reset Container */
+        .mobile-container { 
             box-shadow: none !important; 
             max-width: 100% !important; 
             width: 100% !important;
             height: auto !important;
             overflow: visible !important;
             border-radius: 0 !important;
-            background-color: #ffffff !important; 
-            color: #000000 !important;
-            padding: 0 !important;
-            margin: 0 !important;
+            background: white !important;
         }
 
-        /* RESET SUMMARY CARDS COLORS */
-        .summary-card {
-            background-color: #ffffff !important;
-            border: 1px solid #000 !important;
-            color: #000 !important;
-            box-shadow: none !important;
-        }
-        .summary-card h2, .summary-card p {
-            color: #000 !important;
-        }
-
-        /* TABLE STYLING FOR PRINT */
-        table { 
-            width: 100% !important; 
-            border-collapse: collapse; 
-            font-size: 10pt; 
-            border: 1px solid #000;
-        }
-        thead { display: table-header-group; }
-        tr { break-inside: avoid; }
-        th { 
-            background-color: #f0f0f0 !important; 
-            color: #000 !important; 
-            font-weight: bold;
-            border: 1px solid #000 !important;
-            padding: 8px;
-        }
-        td { 
-            border: 1px solid #000 !important; 
-            padding: 6px; 
-            text-align: left; 
-            color: #000 !important;
-        }
+        /* Table Styling for Print */
+        table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+        th, td { border: 1px solid #000; padding: 6px; text-align: left; }
+        th { background-color: #f0f0f0 !important; font-weight: bold; }
         
+        /* Remove Scrollbars */
         ::-webkit-scrollbar { display: none; }
       }
-      
       body { overflow: hidden; position: fixed; width: 100%; height: 100%; }
       * { -webkit-tap-highlight-color: transparent; }
     `}</style>
@@ -353,7 +304,7 @@ const AreaSelectionScreen = ({ user, onSelectArea, onLogout }) => {
   );
 };
 
-// --- 6. Admin Dashboard ---
+// --- 6. Admin Dashboard (Updated with Global Stats Filters) ---
 const AdminDashboard = ({ user, area, logout }) => {
   const [activeTab, setActiveTab] = useState('history'); 
   const [successMsg, setSuccessMsg] = useState(null);
@@ -372,8 +323,8 @@ const AdminDashboard = ({ user, area, logout }) => {
   // Filter Global
   const [globalStartDate, setGlobalStartDate] = useState(getTodayString());
   const [globalEndDate, setGlobalEndDate] = useState(getTodayString());
-  const [globalAreaFilter, setGlobalAreaFilter] = useState('All'); 
-  const [globalCategoryFilter, setGlobalCategoryFilter] = useState('All'); 
+  const [globalAreaFilter, setGlobalAreaFilter] = useState('All'); // NEW: Area Filter
+  const [globalCategoryFilter, setGlobalCategoryFilter] = useState('All'); // NEW: Category Filter
 
   // Stok
   const [newItemName, setNewItemName] = useState('');
@@ -455,6 +406,7 @@ const AdminDashboard = ({ user, area, logout }) => {
               const filteredGlobal = allData.filter(item => {
                   const matchDate = item.date >= globalStartDate && item.date <= globalEndDate;
                   const matchArea = globalAreaFilter === 'All' || item.area === globalAreaFilter;
+                  // Handle backward compatibility where item.category might be undefined (assume Minuman) or saved as string
                   const itemCat = item.category || 'Minuman'; 
                   const matchCategory = globalCategoryFilter === 'All' || itemCat === globalCategoryFilter;
 
@@ -620,6 +572,7 @@ const AdminDashboard = ({ user, area, logout }) => {
               }
               stats.total += 1;
           } else {
+             // Handle if area not in initial list (optional)
               stats.total += 1;
               if (isFood) stats.totalFood += 1; else stats.totalDrink += 1;
           }
@@ -730,7 +683,7 @@ const AdminDashboard = ({ user, area, logout }) => {
       </div>
   );
 
-  // --- Global Stats & Report Render Function (UPDATED PRINT CSS) ---
+  // --- Global Stats & Report Render Function (UPDATED) ---
   const renderGlobalStats = () => {
     const handlePrint = () => {
         window.print();
@@ -746,13 +699,13 @@ const AdminDashboard = ({ user, area, logout }) => {
             </div>
 
             {/* Print Header */}
-            <div className="hidden print-only mb-6 text-center border-b border-black pb-4">
-                <h2 className="text-2xl font-black text-black uppercase mb-1">Laporan Klaim Makan & Minum</h2>
-                <p className="text-sm text-black">PT Global Service Indonesia</p>
-                <div className="flex justify-center gap-4 mt-2 text-xs font-bold text-black border-t border-gray-300 pt-2 inline-block w-full">
-                    <span className="mx-2">Periode: {globalStartDate} s/d {globalEndDate}</span> | 
-                    <span className="mx-2">Area: {globalAreaFilter}</span> | 
-                    <span className="mx-2">Kategori: {globalCategoryFilter}</span>
+            <div className="hidden print-only mb-6 text-center border-b pb-4">
+                <h2 className="text-2xl font-black text-slate-800 uppercase">Laporan Klaim Makan & Minum</h2>
+                <p className="text-sm text-gray-500">PT Global Service Indonesia</p>
+                <div className="flex justify-center gap-4 mt-2 text-xs font-bold text-gray-600">
+                    <span>Periode: {globalStartDate} s/d {globalEndDate}</span>
+                    <span>Area: {globalAreaFilter}</span>
+                    <span>Kategori: {globalCategoryFilter}</span>
                 </div>
             </div>
 
@@ -800,56 +753,54 @@ const AdminDashboard = ({ user, area, logout }) => {
 
             {/* Summary Cards */}
             <div className="grid grid-cols-3 gap-2 mb-6 break-inside-avoid">
-                <div className="bg-blue-600 summary-card p-3 rounded-xl text-white text-center shadow-md">
+                <div className="bg-blue-600 p-3 rounded-xl text-white text-center shadow-md">
                     <p className="text-[10px] opacity-80 mb-1">Total</p>
                     <h2 className="text-xl font-black">{globalStatsData.total}</h2>
                 </div>
-                <div className="bg-orange-500 summary-card p-3 rounded-xl text-white text-center shadow-md">
+                <div className="bg-orange-500 p-3 rounded-xl text-white text-center shadow-md">
                     <p className="text-[10px] opacity-80 mb-1">Makan</p>
                     <h2 className="text-xl font-black">{globalStatsData.totalFood}</h2>
                 </div>
-                <div className="bg-teal-500 summary-card p-3 rounded-xl text-white text-center shadow-md">
+                <div className="bg-teal-500 p-3 rounded-xl text-white text-center shadow-md">
                     <p className="text-[10px] opacity-80 mb-1">Minum</p>
                     <h2 className="text-xl font-black">{globalStatsData.totalDrink}</h2>
                 </div>
             </div>
 
             {/* CHART 3 AREA */}
-            {globalAreaFilter === 'All' && (
-                <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 mb-6 break-inside-avoid mobile-container">
-                    <h4 className="font-bold text-slate-700 mb-4 text-sm flex items-center gap-2"><BarChart3 size={16}/> Grafik Perbandingan Area</h4>
-                    <div className="flex items-end justify-between h-40 gap-4 pt-4">
-                        {YARDS.map(yard => {
-                            const data = globalStatsData[yard];
-                            const maxVal = Math.max(10, globalStatsData.total);
-                            const foodH = (data.food / maxVal) * 100;
-                            const drinkH = (data.drink / maxVal) * 100;
-                            
-                            return (
-                                <div key={yard} className="flex-1 flex flex-col items-center gap-2 group">
-                                    <div className="w-full flex justify-center gap-1 h-full items-end">
-                                        <div className="w-4 bg-orange-400 rounded-t-sm relative group-hover:opacity-80 transition-all print:border print:border-black" style={{height: `${Math.max(foodH, 5)}%`}}>
-                                            <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] font-bold text-slate-600">{data.food}</span>
-                                        </div>
-                                        <div className="w-4 bg-teal-400 rounded-t-sm relative group-hover:opacity-80 transition-all print:border print:border-black" style={{height: `${Math.max(drinkH, 5)}%`}}>
-                                            <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] font-bold text-slate-600">{data.drink}</span>
-                                        </div>
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 mb-6 break-inside-avoid">
+                <h4 className="font-bold text-slate-700 mb-4 text-sm flex items-center gap-2"><BarChart3 size={16}/> Grafik 3 Area</h4>
+                <div className="flex items-end justify-between h-40 gap-4 pt-4">
+                    {YARDS.map(yard => {
+                        const data = globalStatsData[yard];
+                        const maxVal = Math.max(10, globalStatsData.total); // Scale calculation
+                        const foodH = (data.food / maxVal) * 100;
+                        const drinkH = (data.drink / maxVal) * 100;
+                        
+                        return (
+                            <div key={yard} className="flex-1 flex flex-col items-center gap-2 group">
+                                <div className="w-full flex justify-center gap-1 h-full items-end">
+                                    <div className="w-4 bg-orange-400 rounded-t-sm relative group-hover:opacity-80 transition-all print:border print:border-black" style={{height: `${Math.max(foodH, 5)}%`}}>
+                                        <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] font-bold text-slate-600">{data.food}</span>
                                     </div>
-                                    <span className="text-[9px] font-bold text-slate-500 text-center leading-tight">{yard.replace('Yard ', '')}</span>
+                                    <div className="w-4 bg-teal-400 rounded-t-sm relative group-hover:opacity-80 transition-all print:border print:border-black" style={{height: `${Math.max(drinkH, 5)}%`}}>
+                                        <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] font-bold text-slate-600">{data.drink}</span>
+                                    </div>
                                 </div>
-                            )
-                        })}
-                    </div>
-                    <div className="flex justify-center gap-4 mt-4">
-                        <div className="flex items-center gap-1"><div className="w-2 h-2 bg-orange-400 rounded-full print:border print:border-black"></div><span className="text-[10px] text-gray-500">Makan</span></div>
-                        <div className="flex items-center gap-1"><div className="w-2 h-2 bg-teal-400 rounded-full print:border print:border-black"></div><span className="text-[10px] text-gray-500">Minum</span></div>
-                    </div>
+                                <span className="text-[9px] font-bold text-slate-500 text-center leading-tight">{yard.replace('Yard ', '')}</span>
+                            </div>
+                        )
+                    })}
                 </div>
-            )}
+                <div className="flex justify-center gap-4 mt-4">
+                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-orange-400 rounded-full print:border print:border-black"></div><span className="text-[10px] text-gray-500">Makan</span></div>
+                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-teal-400 rounded-full print:border print:border-black"></div><span className="text-[10px] text-gray-500">Minum</span></div>
+                </div>
+            </div>
 
             {/* TABLE REPORT */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden break-inside-avoid mobile-container">
-                <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 no-print">
+                <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                     <h4 className="font-bold text-slate-700 text-sm flex items-center gap-2"><FileText size={16}/> Laporan Detail</h4>
                     <span className="text-[10px] text-gray-400">{globalClaims.length} Data</span>
                 </div>
@@ -858,7 +809,7 @@ const AdminDashboard = ({ user, area, logout }) => {
                         <thead className="bg-slate-50 text-slate-500 uppercase font-bold">
                             <tr>
                                 <th className="p-3">Tgl/Jam</th>
-                                <th className="p-3">Nama/NRP</th>
+                                <th className="p-3">Nama</th>
                                 <th className="p-3">Lokasi</th>
                                 <th className="p-3">Menu</th>
                                 <th className="p-3 text-right">Kat</th>
@@ -871,14 +822,11 @@ const AdminDashboard = ({ user, area, logout }) => {
                                         <div className="font-bold text-slate-700">{item.date}</div>
                                         <div>{formatDateTime(item.timestamp).split(',')[1]}</div>
                                     </td>
-                                    <td className="p-3">
-                                        <div className="font-bold text-slate-700">{item.userName}</div>
-                                        <div className="text-gray-400 text-[9px]">{item.userNrp}</div>
-                                    </td>
+                                    <td className="p-3 font-bold text-slate-700">{item.userName}</td>
                                     <td className="p-3 text-gray-500">{item.area}</td>
                                     <td className="p-3 text-slate-700">{item.itemName}</td>
                                     <td className="p-3 text-right">
-                                        <span className={`px-1.5 py-0.5 rounded font-bold ${item.category === 'Makanan' ? 'bg-orange-100 text-orange-600' : 'bg-teal-100 text-teal-600'} print:border print:border-black print:bg-white print:text-black`}>
+                                        <span className={`px-1.5 py-0.5 rounded font-bold ${item.category === 'Makanan' ? 'bg-orange-100 text-orange-600' : 'bg-teal-100 text-teal-600'} print:border print:border-gray-300`}>
                                             {item.category === 'Makanan' ? 'M' : 'D'}
                                         </span>
                                     </td>
@@ -895,7 +843,7 @@ const AdminDashboard = ({ user, area, logout }) => {
             </div>
             
             {/* Print Footer */}
-            <div className="hidden print-only mt-8 text-center text-[10px] text-gray-400 border-t border-black pt-2">
+            <div className="hidden print-only mt-8 text-center text-[10px] text-gray-400">
                 <p>Dicetak pada: {new Date().toLocaleString('id-ID')}</p>
                 <p>Sistem Klaim Makan & Minum PT GSI</p>
             </div>
@@ -1060,6 +1008,403 @@ const AdminDashboard = ({ user, area, logout }) => {
                  </div>
               </div>
           )}
+      </div>
+  );
+
+  const MenuButton = ({ id, label, icon: Icon }) => (
+      <button 
+        onClick={() => setActiveTab(id)} 
+        className={`flex-1 flex flex-col items-center justify-center py-2.5 rounded-lg transition-all duration-300 ${
+            activeTab === id 
+            ? 'bg-white text-indigo-900 shadow-md transform scale-100' 
+            : 'text-indigo-200 hover:bg-white/10 hover:text-white'
+        }`}
+      >
+        <Icon size={18} strokeWidth={activeTab === id ? 2.5 : 2} className="mb-1"/>
+        <span className="text-[10px] font-bold tracking-wide">{label}</span>
+      </button>
+  );
+
+  return (
+    <MobileWrapper className="bg-slate-50">
+      <SuccessModal message={successMsg} onClose={() => setSuccessMsg(null)} />
+      
+      <div className="bg-indigo-900 pt-6 pb-4 px-6 rounded-b-[2rem] shadow-xl flex flex-col w-full shrink-0 z-20 relative overflow-hidden print:hidden">
+         <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-10 -mt-10 blur-2xl"></div>
+         <div className="absolute bottom-0 left-0 w-24 h-24 bg-indigo-500/20 rounded-full -ml-5 -mb-5 blur-xl"></div>
+
+         <div className="flex justify-between items-start mb-4 relative z-10">
+             <div>
+                <h2 className="text-xl font-black text-white tracking-tight">Welcome, {user.displayName}</h2>
+                <p className="text-xs text-indigo-300 flex items-center gap-1 font-medium mt-0.5">
+                    <MapPin size={10} className="text-orange-400"/> Admin Panel - {area}
+                </p>
+             </div>
+             <button onClick={logout} className="bg-white/10 backdrop-blur-sm p-2 rounded-full hover:bg-white/20 text-white transition-colors border border-white/5">
+                <LogOut size={16}/>
+             </button>
+         </div>
+
+         <div className="bg-indigo-950/50 p-1.5 rounded-xl flex gap-1 backdrop-blur-md border border-white/5 relative z-10">
+            <MenuButton id="history" label="Riwayat" icon={History} />
+            <MenuButton id="stats" label="Statistik" icon={BarChart3} />
+            <MenuButton id="manage" label="Kelola" icon={Briefcase} />
+            {user.role === 'general_admin' && <MenuButton id="global" label="Global" icon={Globe} />}
+         </div>
+      </div>
+      
+      <div className="flex-1 overflow-y-auto w-full overscroll-none scrollbar-hide bg-slate-50 print:bg-white print:overflow-visible print:h-auto">
+          {activeTab === 'history' && renderHistory()}
+          {activeTab === 'stats' && renderStats()}
+          {activeTab === 'manage' && renderManage()}
+          {user.role === 'general_admin' && activeTab === 'global' && renderGlobalStats()}
+      </div>
+    </MobileWrapper>
+  );
+};
+
+// --- 7. Employee Dashboard (User) ---
+const EmployeeDashboard = ({ user, area, logout }) => {
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [menuItems, setMenuItems] = useState([]);
+  
+  // State Claim Hari Ini (Array karena bisa 2 klaim)
+  const [todaysClaims, setTodaysClaims] = useState([]); 
+  const [showCoupon, setShowCoupon] = useState(null); // Data kupon spesifik
+  const [historyList, setHistoryList] = useState([]);
+  const [isClaiming, setIsClaiming] = useState(false); 
+  
+  // State Tab Makanan/Minuman di Dashboard
+  const [menuTab, setMenuTab] = useState('Makanan'); 
+  const userAccess = user.accessRights || 'all'; // Default all (Makan & Minum)
+
+  // Filter History User
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [filterType, setFilterType] = useState('all'); // Filter preset
+
+  // Logika Waktu
+  const [canClaimTime, setCanClaimTime] = useState(isClaimWindowOpen());
+
+  useEffect(() => {
+      // Cek waktu setiap menit
+      const interval = setInterval(() => {
+          setCanClaimTime(isClaimWindowOpen());
+      }, 60000);
+      return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const q = query(collection(db, 'inventory'), where('area', '==', area));
+    return onSnapshot(q, (snap) => {
+        const allItems = snap.docs.map(d => ({id: d.id, ...d.data()}));
+        const todayName = getDayName();
+        const filteredMenu = allItems.filter(item => {
+            return !item.day || item.day === 'Daily' || item.day === todayName;
+        });
+        filteredMenu.sort((a,b) => a.name.localeCompare(b.name));
+        setMenuItems(filteredMenu);
+    });
+  }, [area]);
+
+  useEffect(() => {
+    // Ambil semua klaim hari ini oleh user ini
+    const q = query(collection(db, 'claims'), where('userId', '==', user.uid), where('date', '==', getTodayString()));
+    return onSnapshot(q, (snap) => {
+      const claims = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setTodaysClaims(claims);
+    });
+  }, [user]);
+
+  useEffect(() => {
+      if (activeTab === 'history') {
+          const q = query(collection(db, 'claims'), where('userId', '==', user.uid), orderBy('timestamp', 'desc'));
+          return onSnapshot(q, (snap) => setHistoryList(snap.docs.map(d => ({id: d.id, ...d.data()}))));
+      }
+  }, [activeTab, user]);
+
+  // Status Klaim Spesifik Kategori
+  const hasClaimedFood = todaysClaims.some(c => c.category === 'Makanan');
+  const hasClaimedDrink = todaysClaims.some(c => c.category === 'Minuman' || !c.category); // Backward compat utk data lama
+
+  const userStats = useMemo(() => {
+      const total = historyList.length;
+      const counts = {};
+      historyList.forEach(item => {
+          const name = item.itemName || item.drinkName;
+          counts[name] = (counts[name] || 0) + 1;
+      });
+      const breakdown = Object.keys(counts).map(name => ({
+          name,
+          count: counts[name],
+          percent: total > 0 ? Math.round((counts[name] / total) * 100) : 0
+      })).sort((a, b) => b.count - a.count);
+
+      return { total, breakdown };
+  }, [historyList]);
+
+  const handleOrder = async (item) => {
+    // Validasi Waktu
+    if (!isClaimWindowOpen()) {
+        alert("Klaim hanya bisa dilakukan pukul 07:30 - 19:00");
+        return;
+    }
+
+    const itemCategory = item.category || 'Minuman';
+    const alreadyClaimed = itemCategory === 'Makanan' ? hasClaimedFood : hasClaimedDrink;
+
+    if (alreadyClaimed) return;
+    if (isClaiming) return;
+    if (item.warehouseStock <= 0) { alert("Stok Habis!"); return; }
+    
+    setIsClaiming(true);
+    try {
+        let newClaimData = null;
+        await runTransaction(db, async (t) => {
+              const invRef = doc(db, 'inventory', item.id);
+              const invDoc = await t.get(invRef);
+              if (!invDoc.exists()) throw new Error("Item tidak ditemukan!");
+              const currentStock = invDoc.data().warehouseStock;
+              
+              if (currentStock <= 0) throw new Error("Stok habis saat diproses!");
+
+              const newClaimRef = doc(collection(db, 'claims'));
+              newClaimData = {
+                userId: user.uid, userName: user.displayName, userNrp: user.nrp || '-',
+                inventoryId: item.id, itemName: item.name, date: getTodayString(),
+                category: itemCategory, // Simpan kategori
+                status: 'completed', location: area, area: area, timestamp: serverTimestamp()
+              };
+              t.set(newClaimRef, newClaimData);
+
+              t.update(invRef, { warehouseStock: currentStock - 1 });
+        });
+        
+        // Buat objek dummy timestamp utk preview kupon segera
+        setShowCoupon({ ...newClaimData, timestamp: new Date() });
+    } catch (e) { 
+        alert("Gagal klaim: " + e.message); 
+    } finally {
+        setIsClaiming(false);
+    }
+  };
+
+  const renderDashboard = () => {
+    const displayedItems = menuItems.filter(item => {
+        const cat = item.category || 'Minuman';
+        return cat === menuTab;
+    });
+
+    const isCurrentCategoryClaimed = menuTab === 'Makanan' ? hasClaimedFood : hasClaimedDrink;
+
+    return (
+    <div className="p-6 pb-28 w-full">
+         <div className={`p-5 rounded-3xl text-white shadow-xl mb-6 relative overflow-hidden bg-gradient-to-r from-blue-600 to-indigo-600`}>
+             <div className="relative z-10">
+                 <p className="text-xs opacity-80 mb-1">Status Hari Ini</p>
+                 <div className="flex gap-4 mt-2">
+                     <div className={`flex-1 p-3 rounded-xl ${hasClaimedFood ? 'bg-green-500/30 border border-green-400/50' : 'bg-white/10 border border-white/20'}`}>
+                        <div className="flex items-center gap-2 mb-1">
+                            <Utensils size={16}/> <span className="text-xs font-bold">Makan</span>
+                        </div>
+                        {hasClaimedFood ? <span className="text-[10px] flex items-center gap-1 font-bold text-green-200"><CheckCircle size={10}/> Diklaim</span> : <span className="text-[10px] opacity-70">Belum</span>}
+                     </div>
+                     
+                     {userAccess !== 'food_only' && (
+                         <div className={`flex-1 p-3 rounded-xl ${hasClaimedDrink ? 'bg-green-500/30 border border-green-400/50' : 'bg-white/10 border border-white/20'}`}>
+                            <div className="flex items-center gap-2 mb-1">
+                                <CupSoda size={16}/> <span className="text-xs font-bold">Minum</span>
+                            </div>
+                            {hasClaimedDrink ? <span className="text-[10px] flex items-center gap-1 font-bold text-green-200"><CheckCircle size={10}/> Diklaim</span> : <span className="text-[10px] opacity-70">Belum</span>}
+                         </div>
+                     )}
+                 </div>
+                 
+                 {todaysClaims.length > 0 && (
+                     <div className="mt-4 flex gap-2">
+                        {todaysClaims.map(c => (
+                            <button key={c.id} onClick={()=>setShowCoupon(c)} className="bg-white/20 px-3 py-2 rounded-lg text-[10px] font-bold flex items-center gap-1 hover:bg-white/30 transition-all">
+                                <Ticket size={12}/> Tiket {c.category === 'Makanan' ? 'Makan' : 'Minum'}
+                            </button>
+                        ))}
+                     </div>
+                 )}
+             </div>
+         </div>
+
+         {!canClaimTime && (
+             <div className="bg-red-50 border border-red-200 p-4 rounded-xl mb-6 flex items-center gap-3">
+                 <AlertCircle className="text-red-500" size={24}/>
+                 <div>
+                     <h4 className="font-bold text-red-700 text-sm">Klaim Ditutup</h4>
+                     <p className="text-xs text-red-500">Klaim hanya tersedia jam 07:30 - 19:00.</p>
+                 </div>
+             </div>
+         )}
+
+         {/* TAB NAVIGATOR */}
+         <div className="flex p-1 bg-slate-200 rounded-xl mb-6">
+             <button 
+                onClick={() => setMenuTab('Makanan')}
+                className={`flex-1 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${menuTab === 'Makanan' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}
+             >
+                <Utensils size={16}/> Makanan
+             </button>
+             {userAccess !== 'food_only' && (
+                 <button 
+                    onClick={() => setMenuTab('Minuman')}
+                    className={`flex-1 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${menuTab === 'Minuman' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}
+                 >
+                    <CupSoda size={16}/> Minuman
+                 </button>
+             )}
+         </div>
+
+         <div className="flex justify-between items-center mb-4">
+            <h3 className="font-bold text-slate-700">Daftar {menuTab}</h3>
+            <span className="text-[10px] bg-slate-100 px-2 py-1 rounded text-slate-500 font-bold flex items-center gap-1"><CalendarDays size={12}/> {getDayName()}</span>
+         </div>
+         
+         <div className="space-y-3">
+             {displayedItems.length === 0 && <p className="text-gray-400 text-center text-sm py-10">Tidak ada menu {menuTab.toLowerCase()} hari ini.</p>}
+             {displayedItems.map(item => (
+                 <div key={item.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
+                     <div className="flex items-center gap-4">
+                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${item.category === 'Makanan' ? 'bg-orange-50 text-orange-500' : 'bg-blue-50 text-blue-500'}`}>
+                            {item.category === 'Makanan' ? <Utensils size={24}/> : <CupSoda size={24}/>}
+                         </div>
+                         <div>
+                             <div className="font-bold text-slate-800">{item.name}</div>
+                             <div className={`text-xs font-bold px-2 py-0.5 rounded-md w-fit mt-1 flex items-center gap-1 ${item.warehouseStock > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                 <Package size={10} /> Stok: {item.warehouseStock}
+                             </div>
+                         </div>
+                     </div>
+                     <button 
+                       disabled={!canClaimTime || isCurrentCategoryClaimed || item.warehouseStock <= 0 || isClaiming} 
+                       onClick={()=>handleOrder(item)}
+                       className={`px-4 py-2 rounded-xl font-bold text-xs shadow-sm transition-all active:scale-95 flex-shrink-0 flex items-center justify-center ${!canClaimTime || isCurrentCategoryClaimed || item.warehouseStock <= 0 ? 'bg-gray-100 text-gray-400' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
+                       {isClaiming ? <Loader2 className="animate-spin" size={16}/> : (!canClaimTime ? 'Tutup' : isCurrentCategoryClaimed ? 'Selesai' : item.warehouseStock <= 0 ? 'Habis' : 'Klaim')}
+                     </button>
+                 </div>
+             ))}
+         </div>
+    </div>
+  )};
+
+  const renderHistory = () => {
+      // Logic Filter Hari Ini dll
+      const todayStr = getTodayString();
+      let filteredHistory = historyList;
+
+      if (filterType === 'today') {
+          filteredHistory = historyList.filter(item => item.date === todayStr);
+      } else if (filterType === 'custom') {
+           filteredHistory = historyList.filter(item => {
+              let matchDate = true;
+              if (startDate) matchDate = matchDate && item.date >= startDate;
+              if (endDate) matchDate = matchDate && item.date <= endDate;
+              return matchDate;
+           });
+      }
+
+      return (
+        <div className="p-6 pb-28 w-full">
+            <h3 className="font-bold text-slate-700 mb-4 text-xl">Riwayat & Statistik</h3>
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 mb-6">
+                <div className="flex items-center gap-4 mb-4 border-b border-slate-50 pb-4">
+                    <div className="bg-blue-50 p-3 rounded-full text-blue-600">
+                        <CupSoda size={24} />
+                    </div>
+                    <div>
+                        <p className="text-xs text-gray-400 font-bold uppercase">Total Klaim</p>
+                        <h2 className="text-2xl font-black text-slate-800">{userStats.total} <span className="text-xs font-normal text-gray-400">Item</span></h2>
+                    </div>
+                </div>
+                <div className="space-y-3">
+                    {userStats.breakdown.slice(0, 5).map((item, idx) => (
+                        <div key={idx}>
+                            <div className="flex justify-between text-xs mb-1">
+                                <span className="font-bold text-slate-600">{item.name}</span>
+                                <span className="text-slate-400">{item.count} ({item.percent}%)</span>
+                            </div>
+                            <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${item.percent}%` }}></div>
+                            </div>
+                        </div>
+                    ))}
+                    {userStats.total === 0 && <p className="text-center text-xs text-gray-400">Belum ada statistik.</p>}
+                </div>
+            </div>
+
+            <h4 className="font-bold text-slate-700 mb-3 text-sm">Daftar Riwayat</h4>
+            
+            <div className="bg-white p-3 rounded-2xl border border-slate-100 mb-4 shadow-sm">
+                 <div className="flex gap-2 mb-2">
+                     <button onClick={() => setFilterType('today')} className={`flex-1 py-1.5 rounded-lg text-xs font-bold ${filterType === 'today' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>Hari Ini</button>
+                     <button onClick={() => setFilterType('all')} className={`flex-1 py-1.5 rounded-lg text-xs font-bold ${filterType === 'all' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>Semua</button>
+                 </div>
+                 
+                 <div onClick={() => setFilterType('custom')} className="grid grid-cols-2 gap-2 mb-2">
+                    <div>
+                        <label className="text-[10px] font-bold text-gray-400 ml-1">Dari</label>
+                        <input type="date" value={startDate} onChange={e => {setStartDate(e.target.value); setFilterType('custom');}} 
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-2 text-xs text-gray-700 focus:outline-none"/>
+                    </div>
+                    <div>
+                        <label className="text-[10px] font-bold text-gray-400 ml-1">Sampai</label>
+                        <input type="date" value={endDate} onChange={e => {setEndDate(e.target.value); setFilterType('custom');}} 
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-2 text-xs text-gray-700 focus:outline-none"/>
+                    </div>
+                 </div>
+                 <button 
+                    onClick={() => exportToCSV(filteredHistory, `Riwayat_Saya_${user.nrp}`)}
+                    className="w-full bg-slate-800 text-white py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-slate-900 active:scale-95 transition-all">
+                    <Download size={14}/> Download Riwayat
+                 </button>
+            </div>
+
+            <div className="space-y-3">
+                {filteredHistory.length === 0 && <p className="text-gray-400 text-center mt-4 text-xs">Belum ada riwayat sesuai filter.</p>}
+                {filteredHistory.map(item => (
+                    <div key={item.id} onClick={() => {if(item.date === getTodayString()) setShowCoupon(item)}} className={`bg-white p-4 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden ${item.date === getTodayString() ? 'cursor-pointer ring-1 ring-blue-400' : ''}`}>
+                        <div className="flex justify-between items-start mb-2">
+                            <span className="font-bold text-slate-800">{item.itemName || item.drinkName}</span>
+                            <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-1 rounded-full">{item.date}</span>
+                        </div>
+                        <div className="flex items-center gap-2 justify-between">
+                             <div className="text-xs font-bold px-2 py-1 rounded flex items-center gap-1 bg-green-100 text-green-600">
+                                <CheckCircle size={12}/> Berhasil
+                             </div>
+                             <span className="text-[10px] text-gray-400 uppercase font-bold">{item.category || 'Minuman'}</span>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+      );
+  };
+
+  const renderProfile = () => (
+      <div className="p-6 pb-28 w-full">
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 text-center mb-6">
+              <div className="w-20 h-20 bg-slate-100 rounded-full mx-auto mb-4 flex items-center justify-center text-slate-400"><User size={40} /></div>
+              <h2 className="text-xl font-bold text-slate-800">{user.displayName}</h2>
+              <p className="text-slate-500 text-sm mb-4">{user.nrp || 'No NRP'}</p>
+              
+              <div className="flex justify-center gap-2">
+                  <div className="bg-blue-50 text-blue-700 px-4 py-2 rounded-xl text-sm font-bold inline-flex items-center gap-2"><MapPin size={14} /> {area}</div>
+                  <div className={`px-4 py-2 rounded-xl text-sm font-bold inline-flex items-center gap-2 ${userAccess === 'food_only' ? 'bg-orange-50 text-orange-600' : 'bg-purple-50 text-purple-600'}`}>
+                      {userAccess === 'food_only' ? <Utensils size={14}/> : <CheckCircle size={14}/>} {userAccess === 'food_only' ? 'Makan Saja' : 'Full Access'}
+                  </div>
+              </div>
+          </div>
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+              <button onClick={logout} className="w-full p-4 text-left flex items-center justify-between hover:bg-slate-50 text-red-500 font-bold">
+                  <span className="flex items-center gap-3"><LogOut size={18}/> Keluar Akun</span><ArrowRight size={16} className="text-red-300"/>
+              </button>
+          </div>
+          <p className="text-center text-gray-300 text-xs mt-8">Versi Aplikasi 3.0 Food & Beverage</p>
       </div>
   );
 
