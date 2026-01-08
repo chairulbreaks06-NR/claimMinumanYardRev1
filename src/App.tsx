@@ -316,13 +316,13 @@ const AreaSelectionScreen = ({ user, onSelectArea, onLogout }) => {
   );
 };
 
-// --- 6. Admin Dashboard (Updated with Global Stats Filters) ---
+// --- 6. Admin Dashboard (Updated with Admin Vendor) ---
 const AdminDashboard = ({ user, area, logout }) => {
   const [activeTab, setActiveTab] = useState('history'); 
   const [successMsg, setSuccessMsg] = useState(null);
   
   const [allClaims, setAllClaims] = useState([]); // Local Area Claims
-  const [globalClaims, setGlobalClaims] = useState([]); // For General Admin (All Areas)
+  const [globalClaims, setGlobalClaims] = useState([]); // For General Admin & Admin Vendor
   const [inventory, setInventory] = useState([]);
   const [usersList, setUsersList] = useState([]);
   
@@ -335,8 +335,8 @@ const AdminDashboard = ({ user, area, logout }) => {
   // Filter Global
   const [globalStartDate, setGlobalStartDate] = useState(getTodayString());
   const [globalEndDate, setGlobalEndDate] = useState(getTodayString());
-  const [globalAreaFilter, setGlobalAreaFilter] = useState('All'); // NEW: Area Filter
-  const [globalCategoryFilter, setGlobalCategoryFilter] = useState('All'); // NEW: Category Filter
+  const [globalAreaFilter, setGlobalAreaFilter] = useState('All'); 
+  const [globalCategoryFilter, setGlobalCategoryFilter] = useState('All');
 
   // Stok
   const [newItemName, setNewItemName] = useState('');
@@ -386,15 +386,18 @@ const AdminDashboard = ({ user, area, logout }) => {
     }
   }, [accountType]);
 
+  // Fetch Inventory (Local)
   useEffect(() => {
+    if(user.role === 'admin_vendor') return; // Admin vendor doesn't manage inventory
     const q = query(collection(db, 'inventory'), where('area', '==', area));
     return onSnapshot(q, (snap) => {
         const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         items.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
         setInventory(items);
     });
-  }, [area]);
+  }, [area, user.role]);
 
+  // Fetch Local Claims
   useEffect(() => {
       const q = query(collection(db, 'claims'), where('area', '==', area));
       return onSnapshot(q, (snap) => {
@@ -408,9 +411,10 @@ const AdminDashboard = ({ user, area, logout }) => {
       });
   }, [area]);
 
-  // Fetch GLOBAL DATA with Enhanced Filters
+  // Fetch GLOBAL DATA (General Admin & Admin Vendor)
   useEffect(() => {
-      if (user.role === 'general_admin' && activeTab === 'global') {
+      // Allow general_admin AND admin_vendor to see global data
+      if ((user.role === 'general_admin' || user.role === 'admin_vendor') && activeTab === 'global') {
           const q = query(collection(db, 'claims'));
           return onSnapshot(q, (snap) => {
               const allData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -418,7 +422,6 @@ const AdminDashboard = ({ user, area, logout }) => {
               const filteredGlobal = allData.filter(item => {
                   const matchDate = item.date >= globalStartDate && item.date <= globalEndDate;
                   const matchArea = globalAreaFilter === 'All' || item.area === globalAreaFilter;
-                  // Handle backward compatibility where item.category might be undefined (assume Minuman) or saved as string
                   const itemCat = item.category || 'Minuman'; 
                   const matchCategory = globalCategoryFilter === 'All' || itemCat === globalCategoryFilter;
 
@@ -435,8 +438,9 @@ const AdminDashboard = ({ user, area, logout }) => {
       }
   }, [user.role, activeTab, globalStartDate, globalEndDate, globalAreaFilter, globalCategoryFilter]);
 
+  // Fetch Users (Manage Tab)
   useEffect(() => {
-    if(activeTab === 'manage' && user.role !== 'user') {
+    if(activeTab === 'manage' && user.role !== 'user' && user.role !== 'admin_vendor') {
         const qFinal = user.role === 'general_admin' ? query(collection(db, 'users')) : query(collection(db, 'users'), where('role', '==', 'user'));
         return onSnapshot(qFinal, (snap) => setUsersList(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     }
@@ -584,7 +588,6 @@ const AdminDashboard = ({ user, area, logout }) => {
               }
               stats.total += 1;
           } else {
-             // Handle if area not in initial list (optional)
              stats.total += 1;
              if (isFood) stats.totalFood += 1; else stats.totalDrink += 1;
           }
@@ -664,7 +667,7 @@ const AdminDashboard = ({ user, area, logout }) => {
           
           <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
               <span className="text-[10px] font-bold bg-slate-100 text-slate-500 px-3 py-1 rounded-full whitespace-nowrap">
-                 Filter: {filterType === 'today' ? 'Hari Ini' : filterType === 'week' ? '7 Hari Terakhir' : filterType === 'month' ? '30 Hari Terakhir' : 'Custom'}
+                  Filter: {filterType === 'today' ? 'Hari Ini' : filterType === 'week' ? '7 Hari Terakhir' : filterType === 'month' ? '30 Hari Terakhir' : 'Custom'}
               </span>
           </div>
 
@@ -786,14 +789,8 @@ const AdminDashboard = ({ user, area, logout }) => {
                     {YARDS.map(yard => {
                         const data = globalStatsData[yard];
                         const totalArea = data.food + data.drink;
-                        const maxVal = Math.max(1, globalStatsData.total); 
-                        // Persentase relatif terhadap total keseluruhan agar grafik proporsional
                         const foodPct = globalStatsData.total > 0 ? (data.food / globalStatsData.total) * 100 : 0;
                         const drinkPct = globalStatsData.total > 0 ? (data.drink / globalStatsData.total) * 100 : 0;
-                        
-                        // ATAU: Persentase bar penuh 100% jika ingin melihat komposisi per area?
-                        // Mari gunakan simple bar relative terhadap max value agar terlihat perbandingannya
-                        // Kita pakai logic simple: Max width 100% = total claim terbesar.
                         
                         return (
                             <div key={yard} className="mb-2">
@@ -806,7 +803,7 @@ const AdminDashboard = ({ user, area, logout }) => {
                                 <div className="flex items-center gap-2 mb-1">
                                      <span className="text-[10px] w-8 text-gray-500">Makan</span>
                                      <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                                         <div className="h-full bg-orange-400 rounded-full" style={{width: `${data.food > 0 ? Math.max(foodPct * 2, 5) : 0}%`}}></div>
+                                          <div className="h-full bg-orange-400 rounded-full" style={{width: `${data.food > 0 ? Math.max(foodPct * 2, 5) : 0}%`}}></div>
                                      </div>
                                      <span className="text-[10px] font-bold text-slate-700 w-6 text-right">{data.food}</span>
                                 </div>
@@ -815,7 +812,7 @@ const AdminDashboard = ({ user, area, logout }) => {
                                 <div className="flex items-center gap-2">
                                      <span className="text-[10px] w-8 text-gray-500">Minum</span>
                                      <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                                         <div className="h-full bg-teal-400 rounded-full" style={{width: `${data.drink > 0 ? Math.max(drinkPct * 2, 5) : 0}%`}}></div>
+                                          <div className="h-full bg-teal-400 rounded-full" style={{width: `${data.drink > 0 ? Math.max(drinkPct * 2, 5) : 0}%`}}></div>
                                      </div>
                                      <span className="text-[10px] font-bold text-slate-700 w-6 text-right">{data.drink}</span>
                                 </div>
@@ -977,6 +974,8 @@ const AdminDashboard = ({ user, area, logout }) => {
                                     >
                                         <option value="admin_area">Admin Area</option>
                                         <option value="general_admin">Admin General</option>
+                                        {/* Added Admin Vendor */}
+                                        <option value="admin_vendor">Admin Vendor</option>
                                     </select>
                                 </div>
                             )}
@@ -1017,12 +1016,12 @@ const AdminDashboard = ({ user, area, logout }) => {
                               <div className="text-right flex items-center gap-2">
                                   <div className="text-right">
                                       <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase block mb-1 ${u.role === 'user' ? 'bg-gray-100 text-gray-600' : 'bg-purple-100 text-purple-600'}`}>
-                                        {u.role === 'general_admin' ? 'General' : u.role === 'admin_area' ? 'Admin Area' : 'User'}
+                                        {u.role === 'general_admin' ? 'General' : u.role === 'admin_area' ? 'Admin Area' : u.role === 'admin_vendor' ? 'Vendor' : 'User'}
                                       </span>
                                       {u.role === 'user' && (
-                                         <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${u.accessRights === 'food_only' ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
-                                            {u.accessRights === 'food_only' ? 'Makan Saja' : 'Full Akses'}
-                                         </span>
+                                       <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${u.accessRights === 'food_only' ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
+                                           {u.accessRights === 'food_only' ? 'Makan Saja' : 'Full Akses'}
+                                       </span>
                                       )}
                                   </div>
                                   <div className="flex flex-col gap-1">
@@ -1075,16 +1074,18 @@ const AdminDashboard = ({ user, area, logout }) => {
          <div className="bg-indigo-950/50 p-1.5 rounded-xl flex gap-1 backdrop-blur-md border border-white/5 relative z-10">
             <MenuButton id="history" label="Riwayat" icon={History} />
             <MenuButton id="stats" label="Statistik" icon={BarChart3} />
-            <MenuButton id="manage" label="Kelola" icon={Briefcase} />
-            {user.role === 'general_admin' && <MenuButton id="global" label="Global" icon={Globe} />}
+            {/* Admin Vendor cannot see manage tab */}
+            {user.role !== 'admin_vendor' && <MenuButton id="manage" label="Kelola" icon={Briefcase} />}
+            {/* Admin Vendor CAN see global tab */}
+            {['general_admin', 'admin_vendor'].includes(user.role) && <MenuButton id="global" label="Global" icon={Globe} />}
          </div>
       </div>
       
       <div className="flex-1 overflow-y-auto w-full overscroll-none scrollbar-hide bg-slate-50 print:bg-white print:overflow-visible print:h-auto">
           {activeTab === 'history' && renderHistory()}
           {activeTab === 'stats' && renderStats()}
-          {activeTab === 'manage' && renderManage()}
-          {user.role === 'general_admin' && activeTab === 'global' && renderGlobalStats()}
+          {activeTab === 'manage' && user.role !== 'admin_vendor' && renderManage()}
+          {['general_admin', 'admin_vendor'].includes(user.role) && activeTab === 'global' && renderGlobalStats()}
       </div>
     </MobileWrapper>
   );
@@ -1503,7 +1504,8 @@ const App = () => {
   
   if (!selectedArea) return <AreaSelectionScreen user={user} onSelectArea={setSelectedArea} onLogout={handleLogout} />;
   
-  if (['admin_area', 'general_admin'].includes(user.role)) return <AdminDashboard user={user} area={selectedArea} logout={handleLogout} />;
+  // Added logic for admin_vendor to be routed to AdminDashboard
+  if (['admin_area', 'general_admin', 'admin_vendor'].includes(user.role)) return <AdminDashboard user={user} area={selectedArea} logout={handleLogout} />;
   return <EmployeeDashboard user={user} area={selectedArea} logout={handleLogout} />;
 };
 
