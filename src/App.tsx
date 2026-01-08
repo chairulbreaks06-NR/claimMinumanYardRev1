@@ -256,7 +256,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
         <div className="flex flex-col items-center justify-center mb-8">
             <div className="mb-4 animate-in zoom-in duration-500">
                 <img 
-                    src={LOGO_URL} 
+                    src={https://github.com/chairulbreaks06-NR/ClaimSofdrinkYard/blob/main/logo%20e%20claimapp.png?raw=true} 
                     alt="Logo Claim Softdrink Baru"
                     className="w-auto h-64 object-contain"
                     key={LOGO_URL} 
