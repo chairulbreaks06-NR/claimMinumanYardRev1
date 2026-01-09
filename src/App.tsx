@@ -173,7 +173,8 @@ const MobileWrapper = ({ children, className = "" }) => (
       * { -webkit-tap-highlight-color: transparent; }
     `}</style>
     
-    <div className={`w-full h-full md:h-[95dvh] md:max-w-md md:rounded-[2.5rem] bg-gray-50 flex flex-col relative overflow-hidden shadow-2xl mobile-container ${className}`}>
+    {/* Menggunakan h-[100dvh] untuk dynamic viewport height di mobile */}
+    <div className={`w-full h-[100dvh] md:h-[95dvh] md:max-w-md md:rounded-[2.5rem] bg-gray-50 flex flex-col relative overflow-hidden shadow-2xl mobile-container ${className}`}>
       <ConnectionStatus />
       {children}
     </div>
@@ -290,7 +291,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
   );
 };
 
-// --- 5. Area Selection ---
+// --- 5. Area Selection (UPDATED: NO ICONS) ---
 const AreaSelectionScreen = ({ user, onSelectArea, onLogout }) => {
   return (
     <MobileWrapper className="bg-slate-50">
@@ -302,9 +303,9 @@ const AreaSelectionScreen = ({ user, onSelectArea, onLogout }) => {
         <div className="grid gap-4 w-full">
             {YARDS.map((yard) => (
                 <button key={yard} onClick={() => onSelectArea(yard)}
-                    className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between hover:border-blue-500 transition-all group w-full text-left">
+                    className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between hover:border-blue-500 transition-all group w-full text-left active:scale-95">
+                    {/* HILANGKAN ICON DISINI */}
                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white flex-shrink-0"><Building2 size={24} /></div>
                         <span className="font-bold text-lg text-slate-700">{yard}</span>
                     </div>
                     <ArrowRight className="text-slate-300 group-hover:text-blue-500" />
@@ -316,13 +317,13 @@ const AreaSelectionScreen = ({ user, onSelectArea, onLogout }) => {
   );
 };
 
-// --- 6. Admin Dashboard (Updated with Admin Vendor) ---
+// --- 6. Admin Dashboard (Updated with Drink Only) ---
 const AdminDashboard = ({ user, area, logout }) => {
   const [activeTab, setActiveTab] = useState('history'); 
   const [successMsg, setSuccessMsg] = useState(null);
   
-  const [allClaims, setAllClaims] = useState([]); // Local Area Claims
-  const [globalClaims, setGlobalClaims] = useState([]); // For General Admin & Admin Vendor
+  const [allClaims, setAllClaims] = useState([]); 
+  const [globalClaims, setGlobalClaims] = useState([]); 
   const [inventory, setInventory] = useState([]);
   const [usersList, setUsersList] = useState([]);
   
@@ -388,7 +389,7 @@ const AdminDashboard = ({ user, area, logout }) => {
 
   // Fetch Inventory (Local)
   useEffect(() => {
-    if(user.role === 'admin_vendor') return; // Admin vendor doesn't manage inventory
+    if(user.role === 'admin_vendor') return; 
     const q = query(collection(db, 'inventory'), where('area', '==', area));
     return onSnapshot(q, (snap) => {
         const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -411,9 +412,8 @@ const AdminDashboard = ({ user, area, logout }) => {
       });
   }, [area]);
 
-  // Fetch GLOBAL DATA (General Admin & Admin Vendor)
+  // Fetch GLOBAL DATA
   useEffect(() => {
-      // Allow general_admin AND admin_vendor to see global data
       if ((user.role === 'general_admin' || user.role === 'admin_vendor') && activeTab === 'global') {
           const q = query(collection(db, 'claims'));
           return onSnapshot(q, (snap) => {
@@ -438,7 +438,7 @@ const AdminDashboard = ({ user, area, logout }) => {
       }
   }, [user.role, activeTab, globalStartDate, globalEndDate, globalAreaFilter, globalCategoryFilter]);
 
-  // Fetch Users (Manage Tab)
+  // Fetch Users
   useEffect(() => {
     if(activeTab === 'manage' && user.role !== 'user' && user.role !== 'admin_vendor') {
         const qFinal = user.role === 'general_admin' ? query(collection(db, 'users')) : query(collection(db, 'users'), where('role', '==', 'user'));
@@ -698,7 +698,7 @@ const AdminDashboard = ({ user, area, logout }) => {
       </div>
   );
 
-  // --- Global Stats & Report Render Function (UPDATED) ---
+  // --- Global Stats & Report Render Function ---
   const renderGlobalStats = () => {
     const handlePrint = () => {
         window.print();
@@ -926,8 +926,8 @@ const AdminDashboard = ({ user, area, logout }) => {
           
           {(user.role === 'general_admin') && (
               <div>
-                 <h3 className="font-bold text-slate-700 text-lg mb-3 flex items-center gap-2"><Users size={18}/> Kelola User</h3>
-                 <div className="bg-white p-4 rounded-2xl shadow-sm border border-purple-100 mb-4">
+                  <h3 className="font-bold text-slate-700 text-lg mb-3 flex items-center gap-2"><Users size={18}/> Kelola User</h3>
+                  <div className="bg-white p-4 rounded-2xl shadow-sm border border-purple-100 mb-4">
                     <form onSubmit={handleSaveUser} className="space-y-3">
                         <input required placeholder="Nama Lengkap" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-gray-900" value={newUserName} onChange={e=>setNewUserName(e.target.value)} />
                         
@@ -949,7 +949,7 @@ const AdminDashboard = ({ user, area, logout }) => {
                                 </select>
                             </div>
                             
-                            {/* PILIHAN HAK AKSES MAKAN/MINUM */}
+                            {/* PILIHAN HAK AKSES MAKAN/MINUM - UPDATED WITH drink_only */}
                             {accountType === 'user' && (
                                 <div className="animate-in fade-in zoom-in-95">
                                     <label className="text-[10px] font-bold text-gray-400 ml-1">Hak Akses</label>
@@ -960,6 +960,7 @@ const AdminDashboard = ({ user, area, logout }) => {
                                     >
                                         <option value="all">Makan & Minum</option>
                                         <option value="food_only">Makan Saja</option>
+                                        <option value="drink_only">Minum Saja</option> {/* NEW OPTION */}
                                     </select>
                                 </div>
                             )}
@@ -974,7 +975,6 @@ const AdminDashboard = ({ user, area, logout }) => {
                                     >
                                         <option value="admin_area">Admin Area</option>
                                         <option value="general_admin">Admin General</option>
-                                        {/* Added Admin Vendor */}
                                         <option value="admin_vendor">Admin Vendor</option>
                                     </select>
                                 </div>
@@ -1019,8 +1019,8 @@ const AdminDashboard = ({ user, area, logout }) => {
                                         {u.role === 'general_admin' ? 'General' : u.role === 'admin_area' ? 'Admin Area' : u.role === 'admin_vendor' ? 'Vendor' : 'User'}
                                       </span>
                                       {u.role === 'user' && (
-                                       <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${u.accessRights === 'food_only' ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
-                                           {u.accessRights === 'food_only' ? 'Makan Saja' : 'Full Akses'}
+                                       <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${u.accessRights === 'food_only' ? 'bg-orange-100 text-orange-600' : u.accessRights === 'drink_only' ? 'bg-teal-100 text-teal-600' : 'bg-blue-100 text-blue-600'}`}>
+                                            {u.accessRights === 'food_only' ? 'Makan Saja' : u.accessRights === 'drink_only' ? 'Minum Saja' : 'Full Akses'}
                                        </span>
                                       )}
                                   </div>
@@ -1096,26 +1096,30 @@ const EmployeeDashboard = ({ user, area, logout }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [menuItems, setMenuItems] = useState([]);
   
-  // State Claim Hari Ini (Array karena bisa 2 klaim)
   const [todaysClaims, setTodaysClaims] = useState([]); 
-  const [showCoupon, setShowCoupon] = useState(null); // Data kupon spesifik
+  const [showCoupon, setShowCoupon] = useState(null); 
   const [historyList, setHistoryList] = useState([]);
   const [isClaiming, setIsClaiming] = useState(false); 
   
-  // State Tab Makanan/Minuman di Dashboard
-  const [menuTab, setMenuTab] = useState('Makanan'); 
-  const userAccess = user.accessRights || 'all'; // Default all (Makan & Minum)
+  // State Tab Makanan/Minuman di Dashboard - Default berdasarkan akses
+  const userAccess = user.accessRights || 'all'; 
+  const [menuTab, setMenuTab] = useState(userAccess === 'drink_only' ? 'Minuman' : 'Makanan'); 
 
   // Filter History User
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [filterType, setFilterType] = useState('all'); // Filter preset
+  const [filterType, setFilterType] = useState('all'); 
 
   // Logika Waktu
   const [canClaimTime, setCanClaimTime] = useState(isClaimWindowOpen());
 
   useEffect(() => {
-      // Cek waktu setiap menit
+      // Ensure tab is correct on mount/change access
+      if (userAccess === 'drink_only') setMenuTab('Minuman');
+      else if (userAccess === 'food_only') setMenuTab('Makanan');
+  }, [userAccess]);
+
+  useEffect(() => {
       const interval = setInterval(() => {
           setCanClaimTime(isClaimWindowOpen());
       }, 60000);
@@ -1136,7 +1140,6 @@ const EmployeeDashboard = ({ user, area, logout }) => {
   }, [area]);
 
   useEffect(() => {
-    // Ambil semua klaim hari ini oleh user ini
     const q = query(collection(db, 'claims'), where('userId', '==', user.uid), where('date', '==', getTodayString()));
     return onSnapshot(q, (snap) => {
       const claims = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -1151,9 +1154,8 @@ const EmployeeDashboard = ({ user, area, logout }) => {
       }
   }, [activeTab, user]);
 
-  // Status Klaim Spesifik Kategori
   const hasClaimedFood = todaysClaims.some(c => c.category === 'Makanan');
-  const hasClaimedDrink = todaysClaims.some(c => c.category === 'Minuman' || !c.category); // Backward compat utk data lama
+  const hasClaimedDrink = todaysClaims.some(c => c.category === 'Minuman' || !c.category); 
 
   const userStats = useMemo(() => {
       const total = historyList.length;
@@ -1172,7 +1174,6 @@ const EmployeeDashboard = ({ user, area, logout }) => {
   }, [historyList]);
 
   const handleOrder = async (item) => {
-    // Validasi Waktu
     if (!isClaimWindowOpen()) {
         alert("Klaim hanya bisa dilakukan pukul 07:30 - 19:00");
         return;
@@ -1189,26 +1190,25 @@ const EmployeeDashboard = ({ user, area, logout }) => {
     try {
         let newClaimData = null;
         await runTransaction(db, async (t) => {
-              const invRef = doc(db, 'inventory', item.id);
-              const invDoc = await t.get(invRef);
-              if (!invDoc.exists()) throw new Error("Item tidak ditemukan!");
-              const currentStock = invDoc.data().warehouseStock;
-              
-              if (currentStock <= 0) throw new Error("Stok habis saat diproses!");
+             const invRef = doc(db, 'inventory', item.id);
+             const invDoc = await t.get(invRef);
+             if (!invDoc.exists()) throw new Error("Item tidak ditemukan!");
+             const currentStock = invDoc.data().warehouseStock;
+             
+             if (currentStock <= 0) throw new Error("Stok habis saat diproses!");
 
-              const newClaimRef = doc(collection(db, 'claims'));
-              newClaimData = {
+             const newClaimRef = doc(collection(db, 'claims'));
+             newClaimData = {
                 userId: user.uid, userName: user.displayName, userNrp: user.nrp || '-',
                 inventoryId: item.id, itemName: item.name, date: getTodayString(),
-                category: itemCategory, // Simpan kategori
+                category: itemCategory, 
                 status: 'completed', location: area, area: area, timestamp: serverTimestamp()
-              };
-              t.set(newClaimRef, newClaimData);
+             };
+             t.set(newClaimRef, newClaimData);
 
-              t.update(invRef, { warehouseStock: currentStock - 1 });
+             t.update(invRef, { warehouseStock: currentStock - 1 });
         });
         
-        // Buat objek dummy timestamp utk preview kupon segera
         setShowCoupon({ ...newClaimData, timestamp: new Date() });
     } catch (e) { 
         alert("Gagal klaim: " + e.message); 
@@ -1231,13 +1231,17 @@ const EmployeeDashboard = ({ user, area, logout }) => {
              <div className="relative z-10">
                  <p className="text-xs opacity-80 mb-1">Status Hari Ini</p>
                  <div className="flex gap-4 mt-2">
-                     <div className={`flex-1 p-3 rounded-xl ${hasClaimedFood ? 'bg-green-500/30 border border-green-400/50' : 'bg-white/10 border border-white/20'}`}>
-                        <div className="flex items-center gap-2 mb-1">
-                            <Utensils size={16}/> <span className="text-xs font-bold">Makan</span>
-                        </div>
-                        {hasClaimedFood ? <span className="text-[10px] flex items-center gap-1 font-bold text-green-200"><CheckCircle size={10}/> Diklaim</span> : <span className="text-[10px] opacity-70">Belum</span>}
-                     </div>
+                     {/* KOTAK STATUS MAKANAN - TAMPIL JIKA BUKAN DRINK ONLY */}
+                     {userAccess !== 'drink_only' && (
+                         <div className={`flex-1 p-3 rounded-xl ${hasClaimedFood ? 'bg-green-500/30 border border-green-400/50' : 'bg-white/10 border border-white/20'}`}>
+                            <div className="flex items-center gap-2 mb-1">
+                                <Utensils size={16}/> <span className="text-xs font-bold">Makan</span>
+                            </div>
+                            {hasClaimedFood ? <span className="text-[10px] flex items-center gap-1 font-bold text-green-200"><CheckCircle size={10}/> Diklaim</span> : <span className="text-[10px] opacity-70">Belum</span>}
+                         </div>
+                     )}
                      
+                     {/* KOTAK STATUS MINUMAN - TAMPIL JIKA BUKAN FOOD ONLY */}
                      {userAccess !== 'food_only' && (
                          <div className={`flex-1 p-3 rounded-xl ${hasClaimedDrink ? 'bg-green-500/30 border border-green-400/50' : 'bg-white/10 border border-white/20'}`}>
                             <div className="flex items-center gap-2 mb-1">
@@ -1270,14 +1274,16 @@ const EmployeeDashboard = ({ user, area, logout }) => {
              </div>
          )}
 
-         {/* TAB NAVIGATOR */}
+         {/* TAB NAVIGATOR - SESUAI AKSES */}
          <div className="flex p-1 bg-slate-200 rounded-xl mb-6">
-             <button 
-                onClick={() => setMenuTab('Makanan')}
-                className={`flex-1 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${menuTab === 'Makanan' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}
-             >
-                <Utensils size={16}/> Makanan
-             </button>
+             {userAccess !== 'drink_only' && (
+                 <button 
+                    onClick={() => setMenuTab('Makanan')}
+                    className={`flex-1 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${menuTab === 'Makanan' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}
+                 >
+                    <Utensils size={16}/> Makanan
+                 </button>
+             )}
              {userAccess !== 'food_only' && (
                  <button 
                     onClick={() => setMenuTab('Minuman')}
@@ -1329,10 +1335,10 @@ const EmployeeDashboard = ({ user, area, logout }) => {
           filteredHistory = historyList.filter(item => item.date === todayStr);
       } else if (filterType === 'custom') {
            filteredHistory = historyList.filter(item => {
-              let matchDate = true;
-              if (startDate) matchDate = matchDate && item.date >= startDate;
-              if (endDate) matchDate = matchDate && item.date <= endDate;
-              return matchDate;
+               let matchDate = true;
+               if (startDate) matchDate = matchDate && item.date >= startDate;
+               if (endDate) matchDate = matchDate && item.date <= endDate;
+               return matchDate;
            });
       }
 
@@ -1422,8 +1428,8 @@ const EmployeeDashboard = ({ user, area, logout }) => {
               
               <div className="flex justify-center gap-2">
                   <div className="bg-blue-50 text-blue-700 px-4 py-2 rounded-xl text-sm font-bold inline-flex items-center gap-2"><MapPin size={14} /> {area}</div>
-                  <div className={`px-4 py-2 rounded-xl text-sm font-bold inline-flex items-center gap-2 ${userAccess === 'food_only' ? 'bg-orange-50 text-orange-600' : 'bg-purple-50 text-purple-600'}`}>
-                      {userAccess === 'food_only' ? <Utensils size={14}/> : <CheckCircle size={14}/>} {userAccess === 'food_only' ? 'Makan Saja' : 'Full Access'}
+                  <div className={`px-4 py-2 rounded-xl text-sm font-bold inline-flex items-center gap-2 ${userAccess === 'food_only' ? 'bg-orange-50 text-orange-600' : userAccess === 'drink_only' ? 'bg-teal-50 text-teal-600' : 'bg-purple-50 text-purple-600'}`}>
+                      {userAccess === 'food_only' ? <Utensils size={14}/> : userAccess === 'drink_only' ? <CupSoda size={14}/> : <CheckCircle size={14}/>} {userAccess === 'food_only' ? 'Makan Saja' : userAccess === 'drink_only' ? 'Minum Saja' : 'Full Access'}
                   </div>
               </div>
           </div>
