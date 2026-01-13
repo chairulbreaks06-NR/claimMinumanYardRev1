@@ -1,0 +1,7 @@
+{
+  "name": "Claim Lunch & Drink MKT",
+  "description": "Employee meal and drink claiming application with admin dashboard and inventory management.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
